@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:harpia/app/data/models/user_google_model.dart';
 import 'package:hive/hive.dart';
 
@@ -69,10 +70,14 @@ class UserGoogleProvider {
     try {
       var box = await Hive.openBox<UserGoogleModel>(_hiveBox);
       await box.put(_hiveKey, user);
-      print('Saved Google user in Hive: ${user.email}');
+      if (kDebugMode) {
+        print('Saved Google user in Hive: ${user.email}');
+      }
       return "success";
     } catch (e) {
-      print('Error saving Google user in Hive: $e');
+      if (kDebugMode) {
+        print('Error saving Google user in Hive: $e');
+      }
       return "Erro ao salvar usuário Google no Hive: $e";
     }
   }
@@ -81,7 +86,9 @@ class UserGoogleProvider {
     try {
       var box = await Hive.openBox<UserGoogleModel>(_hiveBox);
       final user = box.get(_hiveKey);
-      print('Read Google user from Hive: ${user?.email}');
+      if (kDebugMode) {
+        print('Read Google user from Hive: ${user?.email}');
+      }
       return user;
     } catch (e) {
       throw Exception("Erro ao buscar usuário Google do Hive: $e");

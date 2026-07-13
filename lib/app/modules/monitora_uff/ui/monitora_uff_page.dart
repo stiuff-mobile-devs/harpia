@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:harpia/app/data/repository/user_google_repository.dart';
+import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/permissions_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/tracking_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/user_controller.dart';
 import 'package:harpia/app/modules/login/controllers/auth_google_controller.dart';
+import 'package:harpia/app/modules/monitora_uff/models/google_group_model.dart';
 import 'package:harpia/app/routes/app_pages.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
 import 'package:get/get.dart';
@@ -22,10 +24,15 @@ class MonitoraUFFPage extends StatelessWidget {
   PermissionsController get permissionsCtrl =>
       Get.find<PermissionsController>();
   TrackingController get trackingCtrl => Get.find<TrackingController>();
+  GoogleGroupsController get googleGroupsController => Get.find<GoogleGroupsController>();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: _appBar(), body: _body(context));
+    return Scaffold(
+      appBar: _appBar(),
+      drawer: _groupSelector(),
+      body: _body(context)
+    );
   }
 
   AppBar _appBar() {
@@ -38,6 +45,51 @@ class MonitoraUFFPage extends StatelessWidget {
         decoration: BoxDecoration(gradient: AppColors.appBarBottomGradient()),
       ),
       //leading: IconButton(onPressed: Get.back, icon: Icon(Icons.arrow_back)),
+    );
+  }
+
+  Widget _groupSelector() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(color: AppColors.darkBlue()),
+            child: Text('Grupos', style: TextStyle(color: Colors.white, fontSize: 24)),
+          ),
+          // Lista dos grupos
+          // TODO: por enquanto exibe apenas os subgrupos de Harpia-Índice
+          ...googleGroupsController.googleGroups[1].subgroups.map((item) {
+            return _group(item);
+          })
+        ],
+      ),
+    );
+  }
+
+  Widget _group(GoogleGroupModel group) {
+    return ListTile(
+      title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Text(group.email, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+          // TODO: add widget para descrição
+          if (group.description.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              group.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+            )
+          ]
+        ],
+      ),
+
+      isThreeLine: true,
+      onTap: () => googleGroupsController.updateObservedUsers(group)
     );
   }
 
@@ -305,12 +357,18 @@ class MonitoraUFFPage extends StatelessWidget {
 
     return Obx(
       () => MarkerLayer(
-        markers: trackingCtrl.firebaseUsers.map((user) {
+        markers: trackingCtrl.firebaseUsers
+        .where((user) {
+          // Filtro: apenas usuários que estão na intersecção entre `observedMembers` e `firebaseUsers`
+          // serão mostrados na camada de marcadores.
+          final observedMembersEmails = googleGroupsController.observedMembers.map((member) => member.email);
+          return observedMembersEmails.contains(user.email);
+        })
+        .map((user) {
           final isCurrentUser = user.email == trackingCtrl.userCtrl.user?.email;
           // Usa a posição animada se disponível, caso contrário usa a posição atual
           final animatedPos = trackingCtrl.animatedMarkerPositions[user.email];
-          final position =
-              animatedPos ?? LatLng(user.lat ?? 0.0, user.lng ?? 0.0);
+          final position = animatedPos ?? LatLng(user.lat ?? 0.0, user.lng ?? 0.0);
 
           return Marker(
             point: position,
@@ -343,7 +401,9 @@ class MonitoraUFFPage extends StatelessWidget {
                     onTap: () => trackingCtrl.openFirebaseUserDetails(user),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: trackingCtrl.setMarkerColor(user),
+                        color: user.isTracked == false || DateTime.now().difference(user.timestamp!) >= Duration(minutes: 2)  
+                          ? trackingCtrl.setMarkerColor(user).withAlpha(100)
+                          : trackingCtrl.setMarkerColor(user),
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 3),
                         boxShadow: const [

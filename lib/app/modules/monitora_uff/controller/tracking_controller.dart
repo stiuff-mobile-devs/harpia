@@ -97,7 +97,8 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
     mapController = MapController();
 
     // Vincula o stream do Firebase aos usuários rastreados
-    firebaseUsers.bindStream(FirebaseProvider().getAllTrackedUsers());
+    //firebaseUsers.bindStream(FirebaseProvider().getAllTrackedUsers());
+    firebaseUsers.bindStream(FirebaseProvider().getAllUsers());
     
     // Escuta mudanças na lista de usuários para atualizar as animações
     ever(firebaseUsers, _onFirebaseUsersUpdated);

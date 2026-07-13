@@ -49,9 +49,7 @@ class FirebaseProvider {
 
     try {
       await firestore.collection('usuarios').doc(user.email).set(user.toMap());
-
-      // TODO: um print é o melhor aqui?
-      if (kDebugMode) print("Usuário criado com sucesso!");
+      debugPrint("Usuário criado com sucesso!");
     } catch (e) {
       throw Exception("Erro ao criar usuário!");
     }
@@ -85,6 +83,22 @@ class FirebaseProvider {
     }
   }
 
+  Stream<List<UserModel>> getAllUsers() {
+    try {
+      return collectionRef.snapshots().map((QuerySnapshot query) {
+        List<UserModel> users = [];
+        for (var doc in query.docs) {
+          final user = UserModel.fromMap(doc.data() as Map<String, dynamic>);
+          if (user.timestamp == null) continue;
+          users.add(user);
+        }
+        return users;
+      });
+    } catch (e) {
+      throw Exception("Erro ao buscar todos os usuários: $e");
+    }
+  }
+
   Future<UserModel?> getUserByEmail(String email) async {
     try {
       final DocumentSnapshot doc = await collectionRef.doc(email).get();
@@ -104,9 +118,7 @@ class FirebaseProvider {
   Future<void> updateIsTracked(String email, bool isTracked) async {
     try {
       await collectionRef.doc(email).update({'isTracked': isTracked});
-      if (kDebugMode) {
-        print("Campo isTracked atualizado com sucesso!");
-      }
+      debugPrint("Campo isTracked atualizado com sucesso!");
     } catch (e) {
       throw Exception("Erro ao atualizar isTracked: $e");
     }
@@ -115,13 +127,9 @@ class FirebaseProvider {
   Future<void> updateHeartbeat(String email) async {
     try {
       await collectionRef.doc(email).update({'timestamp': DateTime.now()});
-      if (kDebugMode) {
-        print("Heartbeat atualizado com sucesso!");
-      }
+      debugPrint("Heartbeat atualizado com sucesso!");
     } catch (e) {
-      if (kDebugMode) {
-        print("Erro ao atualizar heartbeat: $e");
-      }
+      debugPrint("Erro ao atualizar heartbeat: $e");
     }
   }
 
