@@ -47,8 +47,4 @@ class UserGoogleRepository {
   Future<GdiGroupsGoogle> getGdiGroupsGoogle(String token, String email) async {
     return await _googleService.getGdiGroupsGoogle(token, email);
   }
-
-  //Future<void> registerTokenCdc(String token, String tokenDevice, String device) async {
-  //  await _cdcService.registerToken(token, tokenDevice, device);
-  //}
 }

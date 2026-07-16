@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:harpia/app/modules/login/controllers/auth_google_controller.dart';
 import 'package:harpia/app/modules/login/controllers/login_controller.dart';
 import 'package:get/get.dart';
+import 'package:harpia/app/utils/color_pallete.dart';
 
 import 'widgets/google_button.dart';
 
@@ -11,8 +12,9 @@ class LoginView extends GetView<LoginController> {
 
   AppBar _appBar() {
     return AppBar(
-        title: const Text('Harpia UFF'),
+        title: const Text('Harpia UFF', style: TextStyle(color: Colors.white),),
         centerTitle: true,
+        backgroundColor: AppColors.darkBlue(),
       );
   }
 
@@ -37,6 +39,7 @@ class LoginView extends GetView<LoginController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.darkBlue(),
       appBar: _appBar(),
       body: _body()
     );

@@ -10,7 +10,7 @@ class GoogleService {
   Future<GdiGroupsGoogle> getGdiGroupsGoogle(String token, String email) async {
     try {
       DateTime now = DateTime.now();
-      Uri url = Uri.https(Secrets.gdiGroupsGoogleHost, Secrets.gdiGroupsGooglePath, {'email': email});
+      Uri url = Uri.https(Secrets.gdiGoogleHost, Secrets.gdiUserGoogleGroupsPath, {'email': email});
 
       final response = await http.get(
         url,
@@ -21,13 +21,14 @@ class GoogleService {
       );
 
       if (response.statusCode == 200) {
+        debugPrint(response.body);
         final jsonData = json.decode(response.body);
-        //debugPrint(jsonData);
+        debugPrint(jsonData);
         List<GdiGroups> gdiGroups = (jsonData['groups'].toList() as List)
             .map((group) => GdiGroups.fromJson(group))
             .toList();
-        //debugPrint("Grupos GDI obtidos com sucesso:");
-        //gdiGroups.forEach((group) => debugPrint('(${group.name}, ${group.email})'));
+        debugPrint("Grupos GDI obtidos com sucesso:");
+        gdiGroups.forEach((group) => debugPrint('(${group.name}, ${group.email})'));
         GdiGroupsGoogle gdiGroupsGoogle = GdiGroupsGoogle(now, gdiGroups);
         return gdiGroupsGoogle;
       } else {
@@ -39,11 +40,41 @@ class GoogleService {
     }
   }
 
+  /// Busca todos os membros de um grupo Google.
+  /// 
+  /// Retorna a lista bruta de membros (Map) conforme retornado pela API.
+  /// Cada membro possui: id, email, role, type (USER ou GROUP), status.
+  Future<List<Map<String, dynamic>>> getGroupMembers(String token, String groupEmail) async {
+    try {
+      Uri url = Uri.https(Secrets.gdiGoogleHost, Secrets.gdiGroupMembers, {'email': groupEmail});
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        debugPrint("Membros do grupo $groupEmail obtidos com sucesso:");
+        final List<dynamic> members = jsonData['members'] as List;
+        return members.cast<Map<String, dynamic>>();
+      } else {
+        throw Exception('Falha ao buscar membros do grupo: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint("Erro ao obter membros do grupo $groupEmail: $e");
+      return [];
+    }
+  }
+
   //Future<void> someRequest(String token, String email) async {
   //  try {
   //    //DateTime now = DateTime.now();
   //    Uri url = Uri.https(Secrets.gdiGroupsGoogleHost, Secrets.somePath, {'email': email});
-//
+  //
   //    final response = await http.get(
   //      url,
   //      headers: {
@@ -51,7 +82,7 @@ class GoogleService {
   //        'Authorization': 'Bearer $token',
   //      }
   //    );
-//
+  //
   //    if (response.statusCode == 200) {
   //      final jsonData = json.decode(response.body);
   //      debugPrint(jsonData);

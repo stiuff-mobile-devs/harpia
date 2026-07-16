@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:harpia/app/data/models/gd_groups_google_model.dart';
-import 'package:harpia/app/data/models/user_data.dart';
 import 'package:harpia/app/data/repository/user_data_repository.dart';
 import 'package:harpia/app/data/repository/user_google_repository.dart';
 import 'package:harpia/app/modules/login/services/auth_google_service.dart';
@@ -38,6 +37,7 @@ class AuthGoogleController extends GetxController {
       await _userRepository.saveUserGoogleModel(user);
       //await Get.find<UserController>().loadCurrentUser();
       await _getGdiGroupsGoogle(token ?? '', user.email);
+      //await _getGoogleGroupMembers(token ?? '', 'grupos.harpia@id.uff.br'); // TODO: estou passando o email do grupo diretamente aqui. Trocar.
       Get.offNamed(Routes.MONITORA_UFF);
     } else {
       Get.snackbar(
@@ -50,31 +50,33 @@ class AuthGoogleController extends GetxController {
 
   Future<void> _getGdiGroupsGoogle(String token, String email) async {
     try {
-      UserData user = await _userDataRepository.getUserData() ?? UserData();
-
-      if (user.gdiGroupsGoogle != null &&
-          user.gdiGroupsGoogle?.lastUpdate != null) {
-        if (DateTime.now()
-                .difference(user.gdiGroupsGoogle?.lastUpdate as DateTime)
-                .inDays <
-            90) {
-          debugPrint(
-            "GDI Groups Google já atualizado recentemente. Não é necessário atualizar.",
-          );
-          return;
-        }
-      }
-
       GdiGroupsGoogle gdiGroups = await _userRepository.getGdiGroupsGoogle(
         token,
         email,
       );
+      // TODO: o comando abaixo retorna a promessa de uma String s,
+      // mas nada é feito com s. Por isso, talvez eu possa remover o await.
       await _userDataRepository.updateGdiGroupsGoogle(gdiGroups);
     } catch (e) {
       debugPrint("Erro ao obter grupos GDI Google: $e");
     }
   }
 
+  //Future<void> _getGoogleGroupMembers(String token, String groupEmail) async {
+  //  try {
+  //    GdiGroupsGoogle gdiGroups = await _userRepository.getGdiGroupsGoogle(
+  //      token,
+  //      groupEmail,
+  //    );
+  //    
+  //    // TODO: o comando abaixo retorna a promessa de uma String s,
+  //    // mas nada é feito com s. Por isso, talvez eu possa remover o await.
+  //    await _userDataRepository.updateGdiGroupsGoogle(gdiGroups);
+  //  } catch (e) {
+  //    debugPrint("Erro ao obter grupos GDI Google: $e");
+  //  }
+  //}
+  
   void loginGoogle() async {
     try {
       final user = await _authGoogle.signInGoogle();

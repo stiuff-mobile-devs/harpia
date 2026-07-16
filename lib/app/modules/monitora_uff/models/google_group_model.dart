@@ -15,12 +15,21 @@ class GoogleGroupModel {
     required this.subgroups
   });
 
+  GoogleGroupModel.fromJson(Map<String, dynamic> json)
+    : name = json['name'].toString(),
+      email = json['email'].toString(),
+      description = json['description'].toString(),
+      members = json['members'],
+      subgroups = json['subgroups'];
+
+
+
   //GoogleGroupModel.fromMap(Map<String, dynamic> json)
   //  : name = json['name'].toString(),
   //    email = json['email'].toString(),
   //    description = json['description']?.toString() ?? '',
   //    participants = json['participants'];
-//
+  //
   //Map<String, dynamic> toMap() {
   //  return {
   //    'name': name,

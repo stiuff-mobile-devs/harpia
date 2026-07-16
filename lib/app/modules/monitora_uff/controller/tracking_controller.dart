@@ -112,7 +112,7 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
     //}
 
     // TODO: encapsular em um método
-    if (userCtrl.isMonitor()) {
+    if (userCtrl.isTrackable()) {
       position = await Geolocator.getCurrentPosition();
     }
 

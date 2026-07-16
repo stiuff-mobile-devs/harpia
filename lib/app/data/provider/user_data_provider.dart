@@ -138,7 +138,7 @@ class UserDataProvider {
       UserData? user = box.get(_userKey);
 
       if (user == null) {
-        await saveUserData(  UserData(gdiGroupsGoogle: gdiGroupsGoogle));
+        await saveUserData(UserData(gdiGroupsGoogle: gdiGroupsGoogle));
         return "success";
       }
 

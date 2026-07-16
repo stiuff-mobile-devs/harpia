@@ -4,13 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:harpia/app/data/repository/user_google_repository.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/permissions_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/tracking_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/user_controller.dart';
 import 'package:harpia/app/modules/login/controllers/auth_google_controller.dart';
-import 'package:harpia/app/modules/monitora_uff/models/google_group_model.dart';
+import 'package:harpia/app/modules/monitora_uff/ui/widgets/group_selector.dart';
+import 'package:harpia/app/modules/monitora_uff/ui/widgets/harpia_app_bar.dart';
 import 'package:harpia/app/routes/app_pages.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
 import 'package:get/get.dart';
@@ -29,73 +29,73 @@ class MonitoraUFFPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _appBar(),
-      drawer: _groupSelector(),
+      appBar: HarpiaAppBar(),
+      drawer: GroupSelector(),//_groupSelector(),
       body: _body(context)
     );
   }
 
-  AppBar _appBar() {
-    return AppBar(
-      title: const Text('Harpia'),
-      centerTitle: true,
-      elevation: 8,
-      foregroundColor: Colors.white,
-      flexibleSpace: Container(
-        decoration: BoxDecoration(gradient: AppColors.appBarBottomGradient()),
-      ),
-      //leading: IconButton(onPressed: Get.back, icon: Icon(Icons.arrow_back)),
-    );
-  }
+  //AppBar _appBar() {
+  //  return AppBar(
+  //    title: const Text('Harpia'),
+  //    centerTitle: true,
+  //    elevation: 8,
+  //    foregroundColor: Colors.white,
+  //    flexibleSpace: Container(
+  //      decoration: BoxDecoration(gradient: AppColors.appBarBottomGradient()),
+  //    ),
+  //    //leading: IconButton(onPressed: Get.back, icon: Icon(Icons.arrow_back)),
+  //  );
+  //}
 
-  Widget _groupSelector() {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(color: AppColors.darkBlue()),
-            child: Text('Grupos', style: TextStyle(color: Colors.white, fontSize: 24)),
-          ),
-          // Lista dos grupos
-          // TODO: por enquanto exibe apenas os subgrupos de Harpia-Índice
-          ...googleGroupsController.googleGroups[1].subgroups.map((item) {
-            return _group(item);
-          })
-        ],
-      ),
-    );
-  }
+  //Widget _groupSelector() {
+  //  return Drawer(
+  //    child: ListView(
+  //      padding: EdgeInsets.zero,
+  //      children: [
+  //        DrawerHeader(
+  //          decoration: BoxDecoration(color: AppColors.darkBlue()),
+  //          child: Text('Grupos', style: TextStyle(color: Colors.white, fontSize: 24)),
+  //        ),
+  //        // Lista dos grupos
+  //        // TODO: por enquanto exibe apenas os subgrupos de Harpia-Índice
+  //        ...googleGroupsController.googleGroups[1].subgroups.map((item) {
+  //          return _group(item);
+  //        })
+  //      ],
+  //    ),
+  //  );
+  //}
 
-  Widget _group(GoogleGroupModel group) {
-    return ListTile(
-      title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          Text(group.email, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-          // TODO: add widget para descrição
-          if (group.description.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              group.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.grey[500], fontSize: 12),
-            )
-          ]
-        ],
-      ),
+  // Widget _group(GoogleGroupModel group) {
+  //   return ListTile(
+  //     title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+  //     subtitle: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         const SizedBox(height: 4),
+  //         Text(group.email, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+  //         // TODO: add widget para descrição
+  //         if (group.description.isNotEmpty) ...[
+  //           const SizedBox(height: 2),
+  //           Text(
+  //             group.description,
+  //             maxLines: 2,
+  //             overflow: TextOverflow.ellipsis,
+  //             style: TextStyle(color: Colors.grey[500], fontSize: 12),
+  //           )
+  //         ]
+  //       ],
+  //     ),
 
-      isThreeLine: true,
-      onTap: () => googleGroupsController.updateObservedUsers(group)
-    );
-  }
+  //     isThreeLine: true,
+  //     onTap: () => googleGroupsController.updateObservedUsers(group)
+  //   );
+  // }
 
   Widget _centralizeButton() {
     return Obx(
-      () => permissionsCtrl.arePermissionsGranted() && userCtrl.isMonitor()
+      () => permissionsCtrl.arePermissionsGranted() && userCtrl.isTrackable()
           ? Positioned(
               bottom: 16,
               right: 16,
@@ -119,7 +119,7 @@ class MonitoraUFFPage extends StatelessWidget {
       // TODO
       if (userCtrl.isAdmin()) {
         return _adminDashboard(context);
-      } else if (userCtrl.isMonitor() & !kIsWeb) {
+      } else if (userCtrl.isTrackable() & !kIsWeb) {
         return _monitorPage(context);
       }
 
@@ -539,7 +539,7 @@ class MonitoraUFFPage extends StatelessWidget {
   }
 
   Widget toggleButton() {
-    return userCtrl.isMonitor()
+    return userCtrl.isTrackable()
         ? Positioned(
             top: 16,
             right: 16,
@@ -567,7 +567,10 @@ class MonitoraUFFPage extends StatelessWidget {
       decoration: BoxDecoration(gradient: AppColors.darkBlueToBlackGradient()),
       child: PersistentTabView(
         context,
-        screens: [mapa(context), _adminPage(), _settingsPage()],
+        screens: [
+          mapa(context), 
+          _adminPage()
+        ],
         items: [
           PersistentBottomNavBarItem(
             icon: Icon(Icons.map, color: Colors.white),
@@ -662,42 +665,42 @@ class MonitoraUFFPage extends StatelessWidget {
     );
   }
 
-  Widget _settingsPage() {
-    return SafeArea(
-      child: FutureBuilder(
-        future: UserGoogleRepository().getUserGoogleModel(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  onPressed: () =>
-                      Get.find<AuthGoogleController>().logout(),
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Logout'),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+  // Widget _settingsPage() {
+    // return SafeArea(
+      // child: FutureBuilder(
+        // future: UserGoogleRepository().getUserGoogleModel(),
+        // builder: (context, snapshot) {
+          // if (snapshot.connectionState == ConnectionState.waiting) {
+            // return const Center(child: CircularProgressIndicator());
+          // }
+          // return Center(
+            // child: ConstrainedBox(
+              // constraints: const BoxConstraints(maxWidth: 420),
+              // child: SizedBox(
+                // width: double.infinity,
+                // child: ElevatedButton.icon(
+                  // style: ElevatedButton.styleFrom(
+                    // backgroundColor: Colors.redAccent,
+                    // foregroundColor: Colors.white,
+                    // padding: const EdgeInsets.symmetric(
+                      // vertical: 14,
+                    // ),
+                    // shape: RoundedRectangleBorder(
+                      // borderRadius: BorderRadius.circular(14),
+                    // ),
+                  // ),
+                  // onPressed: () =>
+                      // Get.find<AuthGoogleController>().logout(),
+                  // icon: const Icon(Icons.logout),
+                  // label: const Text('Logout'),
+                // ),
+              // ),
+            // ),
+          // );
+        // },
+      // ),
+    // );
+  // }
 
   Widget _deleteUserPopUp(String email) {
     return AlertDialog(

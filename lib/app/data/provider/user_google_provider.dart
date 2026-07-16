@@ -20,28 +20,22 @@ class UserGoogleProvider {
     String uid,
     String urlImage,
   ) async {
-    // Verifica se já existe um usuário com este email no Firestore
-    final query = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: email)
-        .limit(1)
-        .get();
+    final docRef = _firestore.collection('users').doc(uid);
+    final docSnapshot = await docRef.get();
 
     UserGoogleModel user;
-    if (query.docs.isNotEmpty) {
-      // Usuário já existe, retorna o existente
-      final data = query.docs.first.data();
+    if (docSnapshot.exists) {
+      final data = docSnapshot.data() as Map<String, dynamic>;
       user = UserGoogleModel(
-        id: query.docs.first.id,
+        id: docSnapshot.id,
         name: data['name'] as String?,
         email: data['email'] as String,
         urlImage: data['urlImage'] as String?,
         createdAt: data['createdAt'] != null
-            ? DateTime.tryParse(data['createdAt'])
+            ? DateTime.tryParse(data['createdAt'] as String)
             : null,
       );
     } else {
-      // Usuário não existe, cria novo
       user = UserGoogleModel(
         name: name,
         email: email,
@@ -57,13 +51,12 @@ class UserGoogleProvider {
   }
 
   Future<void> createUserDocInFirebase(UserGoogleModel user) async {
-    DocumentReference docRef = await _firestore.collection('users').add({
+    await _firestore.collection('users').doc(user.id).set({
       'name': user.name,
       'email': user.email,
       'urlImage': user.urlImage,
       'createdAt': user.createdAt?.toIso8601String(),
     });
-    user.id = docRef.id;
   }
 
   Future<String> saveUserGoogleModel(UserGoogleModel user) async {

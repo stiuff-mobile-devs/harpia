@@ -50,7 +50,7 @@ class UserController extends GetxController {
 
   bool isAdmin() => _user.value?.funcao == 'administrador';
 
-  bool isMonitor() => _user.value?.funcao == 'monitor';
+  bool isTrackable() => _user.value?.funcao == 'monitor';
 
   void deleteUser(String email) => FirebaseProvider().deleteUserByEmail(email);
 
