@@ -8,6 +8,9 @@ import 'package:harpia/app/modules/monitora_uff/data/provider/firebase_provider.
 import 'package:harpia/firebase_options.dart';
 
 Timer? _heartbeatTimer;
+int interval = 5;
+int distance = 10;
+int heartbeatInterval = 5;
 
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
@@ -45,26 +48,26 @@ void updateLocation(ServiceInstance service, String email, String name, String f
   if (Platform.isAndroid) {
     locationSettings = AndroidSettings(
       accuracy: LocationAccuracy.high, // TODO: testar outros valores aqui
-      distanceFilter: 10, // Só atualiza se mover mais de 10 metros
-      intervalDuration: Duration(seconds: 5),
+      distanceFilter: distance, // Só atualiza se mover mais de 10 metros
+      intervalDuration: Duration(minutes: interval),
     );
   } else if (Platform.isIOS) {
     locationSettings = AppleSettings(
       accuracy: LocationAccuracy.high,
       activityType: ActivityType.other,
-      distanceFilter: 10,
+      distanceFilter: distance,
       pauseLocationUpdatesAutomatically: true,
       showBackgroundLocationIndicator: true,
     );
   } else {
     locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
+      distanceFilter: distance,
     );
   }
 
   _heartbeatTimer?.cancel();
-  _heartbeatTimer = Timer.periodic(const Duration(minutes: 1), (timer) async {
+  _heartbeatTimer = Timer.periodic(Duration(minutes: heartbeatInterval), (timer) async {
     if (await FirebaseProvider().doesDocumentExist(email)) {
       await FirebaseProvider().updateHeartbeat(email);
     }
