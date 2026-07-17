@@ -13,7 +13,9 @@ import 'package:harpia/app/modules/monitora_uff/ui/widgets/group_selector.dart';
 import 'package:harpia/app/modules/monitora_uff/ui/widgets/harpia_app_bar.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart' hide Path;
+import 'package:harpia/app/data/services/foreground_service.dart' as foreground_service;
 
 class MonitoraUFFPage extends StatelessWidget {
   const MonitoraUFFPage({super.key});
@@ -341,7 +343,7 @@ class MonitoraUFFPage extends StatelessWidget {
                     onTap: () => trackingCtrl.openFirebaseUserDetails(user),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: user.isTracked == false || DateTime.now().difference(user.timestamp!) >= Duration(minutes: 2)  
+                        color: user.isTracked == false || DateTime.now().difference(user.timestamp!) >= Duration(minutes: foreground_service.interval)  
                           ? trackingCtrl.setMarkerColor(user).withAlpha(100)
                           : trackingCtrl.setMarkerColor(user),
                         shape: BoxShape.circle,
@@ -462,7 +464,7 @@ class MonitoraUFFPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Última atualização: ${user.timestamp}",
+                      "Última atualização: ${DateFormat('dd/MM/yyyy HH:mm').format(user.timestamp!)}",
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.white70,
