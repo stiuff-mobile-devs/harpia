@@ -14,7 +14,7 @@ import 'package:flutter/foundation.dart'
 ///   options: DefaultFirebaseOptions.currentPlatform,
 /// );
 /// ```
-class FirebaseOptionsUffmobileplus {
+class FirebaseOptionsHarpia {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       return web;
@@ -41,61 +41,50 @@ class FirebaseOptionsUffmobileplus {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBSq3sXTfcuMq-EPSNdwd3lXxqrVxvzgLE',
-    appId: '1:222693628192:web:bae324e5444ca3838adf45',
-    messagingSenderId: '222693628192',
-    projectId: 'uff-mobile-plus',
-    authDomain: 'uff-mobile-plus.firebaseapp.com',
-    databaseURL: 'https://uff-mobile-plus.firebaseio.com',
-    storageBucket: 'uff-mobile-plus.firebasestorage.app',
-    measurementId: 'G-WPPH8SSRQQ',
+    apiKey: 'AIzaSyAwTG9iwUAMKdU2FUS3ecB5MXf7OkR2lIg',
+    appId: '1:14422911132:web:ae815779d5d66516d96559',
+    messagingSenderId: '14422911132',
+    projectId: 'harpia-c699b',
+    authDomain: 'harpia-c699b.firebaseapp.com',
+    storageBucket: 'harpia-c699b.firebasestorage.app',
+    measurementId: 'G-XEEC7NKGNL',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDIe3CCE33ya8jACc23P8nIIDp-L1GK_gE',
-    appId: '1:222693628192:android:513f83091d5400ac8adf45',
-    messagingSenderId: '222693628192',
-    projectId: 'uff-mobile-plus',
-    databaseURL: 'https://uff-mobile-plus.firebaseio.com',
-    storageBucket: 'uff-mobile-plus.firebasestorage.app',
+    apiKey: 'AIzaSyBa3OVRxW4KGnZUNhwB7TPL5zEMtByHFHI',
+    appId: '1:14422911132:android:b9d23fd52c0ce845d96559',
+    messagingSenderId: '14422911132',
+    projectId: 'harpia-c699b',
+    storageBucket: 'harpia-c699b.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCIA_27Ff9I_M5YKFJGC9IPgVG4d8dmSFw',
-    appId: '1:222693628192:ios:58f258903a65c0678adf45',
-    messagingSenderId: '222693628192',
-    projectId: 'uff-mobile-plus',
-    databaseURL: 'https://uff-mobile-plus.firebaseio.com',
-    storageBucket: 'uff-mobile-plus.firebasestorage.app',
-    androidClientId:
-        '222693628192-0aho0srg8evnbobvdb118ptmsjc5jacc.apps.googleusercontent.com',
-    iosClientId:
-        '222693628192-60ec3i35hu0plsijltn2bm1k3mh47sgb.apps.googleusercontent.com',
-    iosBundleId: 'br.uff.sti.uffmobileplus',
+    apiKey: 'AIzaSyBZySXBiQTei1bVZm2lhUDqep6XI3np1hA',
+    appId: '1:14422911132:ios:1f5a5f5042dff87fd96559',
+    messagingSenderId: '14422911132',
+    projectId: 'harpia-c699b',
+    storageBucket: 'harpia-c699b.firebasestorage.app',
+    androidClientId: '14422911132-ac5k471uuq6ajl62ge200i20sc9j6f74.apps.googleusercontent.com',
+    iosClientId: '14422911132-921ubqc5kp7vnuu5kljtv8tini44oj0k.apps.googleusercontent.com',
+    iosBundleId: 'com.example.geotrackingStandalone',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCIA_27Ff9I_M5YKFJGC9IPgVG4d8dmSFw',
-    appId: '1:222693628192:ios:58f258903a65c0678adf45',
-    messagingSenderId: '222693628192',
-    projectId: 'uff-mobile-plus',
-    databaseURL: 'https://uff-mobile-plus.firebaseio.com',
-    storageBucket: 'uff-mobile-plus.firebasestorage.app',
-    androidClientId:
-        '222693628192-0aho0srg8evnbobvdb118ptmsjc5jacc.apps.googleusercontent.com',
-    iosClientId:
-        '222693628192-60ec3i35hu0plsijltn2bm1k3mh47sgb.apps.googleusercontent.com',
-    iosBundleId: 'br.uff.sti.uffmobileplus',
+    apiKey: 'AIzaSyBZySXBiQTei1bVZm2lhUDqep6XI3np1hA',
+    appId: '1:14422911132:ios:1f5a5f5042dff87fd96559',
+    messagingSenderId: '14422911132',
+    projectId: 'harpia-c699b',
+    storageBucket: 'harpia-c699b.firebasestorage.app',
+    androidClientId: '14422911132-ac5k471uuq6ajl62ge200i20sc9j6f74.apps.googleusercontent.com',
+    iosClientId: '14422911132-921ubqc5kp7vnuu5kljtv8tini44oj0k.apps.googleusercontent.com',
+    iosBundleId: 'com.example.geotrackingStandalone',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBSq3sXTfcuMq-EPSNdwd3lXxqrVxvzgLE',
-    appId: '1:222693628192:web:51031092cad897918adf45',
-    messagingSenderId: '222693628192',
-    projectId: 'uff-mobile-plus',
-    authDomain: 'uff-mobile-plus.firebaseapp.com',
-    databaseURL: 'https://uff-mobile-plus.firebaseio.com',
-    storageBucket: 'uff-mobile-plus.firebasestorage.app',
-    measurementId: 'G-82JNHMZEE7',
+    apiKey: 'AIzaSyAwTG9iwUAMKdU2FUS3ecB5MXf7OkR2lIg',
+    appId: '1:14422911132:web:31b312dc6ab73716d96559',
+    messagingSenderId: '14422911132',
+    projectId: 'harpia-c699b',
+    authDomain: 'harpia-c699b.firebaseapp.com',
+    storageBucket: 'harpia-c699b.firebasestorage.app',
+    measurementId: 'G-G9DS4P9H89',
   );
 }

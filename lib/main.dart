@@ -16,7 +16,7 @@ Future<void> main() async {
 
   await Firebase.initializeApp(
     //name: 'uffmobileplus',
-    options: FirebaseOptionsUffmobileplus.currentPlatform,
+    options: FirebaseOptionsHarpia.currentPlatform,
   );
 
   runApp(

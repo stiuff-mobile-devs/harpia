@@ -6,12 +6,11 @@ import 'package:harpia/app/modules/monitora_uff/models/user_model.dart';
 
 class FirebaseProvider {
   //final String firebaseAppName = 'uffmobileplus';
-  final String firestoreDatabaseId = 'monitora-uff';
+  //final String firestoreDatabaseId = 'monitora-uff';
 
   CollectionReference get collectionRef => FirebaseFirestore.instanceFor(
-    //app: Firebase.app(firebaseAppName),
     app: Firebase.app(),
-    databaseId: firestoreDatabaseId,
+    //databaseId: firestoreDatabaseId,
   ).collection('usuarios');
 
   Future<void> adicionarDados(UserModel userLocation) async {
@@ -19,7 +18,7 @@ class FirebaseProvider {
     FirebaseFirestore firestore = FirebaseFirestore.instanceFor(
       //app: Firebase.app(firebaseAppName),
       app: Firebase.app(),
-      databaseId: firestoreDatabaseId,
+      //databaseId: firestoreDatabaseId,
     );
 
     // 2. Referenciar a coleção e adicionar dados
@@ -44,7 +43,7 @@ class FirebaseProvider {
     FirebaseFirestore firestore = FirebaseFirestore.instanceFor(
       //app: Firebase.app(firebaseAppName),
       app: Firebase.app(),
-      databaseId: firestoreDatabaseId,
+      //databaseId: firestoreDatabaseId,
     );
 
     try {

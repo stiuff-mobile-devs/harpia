@@ -30,8 +30,8 @@ class AuthGoogleService {
     await _googleSignIn.initialize(
       // clientId é obrigatório na web
       // NOTE: estou usando o mesmo id para clientId e serverClientId
-      clientId: kIsWeb ? Secrets.googleServerClientId : null,
-      serverClientId: kIsWeb ? null : Secrets.googleServerClientId,
+      clientId: kIsWeb ? Secrets.umpGoogleServerWebClientId : null,
+      serverClientId: kIsWeb ? null : Secrets.umpGoogleServerWebClientId,
     );
 
     debugPrint('AuthGoogleService: initialize done');

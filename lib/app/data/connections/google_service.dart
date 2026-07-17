@@ -10,7 +10,11 @@ class GoogleService {
   Future<GdiGroupsGoogle> getGdiGroupsGoogle(String token, String email) async {
     try {
       DateTime now = DateTime.now();
-      Uri url = Uri.https(Secrets.gdiGoogleHost, Secrets.gdiUserGoogleGroupsPath, {'email': email});
+      Uri url = Uri.https(
+        Secrets.gdiGoogleHost, 
+        Secrets.gdiUserGoogleGroupsPath, 
+        {'email': email}
+      );
 
       final response = await http.get(
         url,
@@ -21,14 +25,14 @@ class GoogleService {
       );
 
       if (response.statusCode == 200) {
-        debugPrint(response.body);
+        //debugPrint(response.body);
         final jsonData = json.decode(response.body);
-        debugPrint(jsonData);
+        //debugPrint(jsonData);
         List<GdiGroups> gdiGroups = (jsonData['groups'].toList() as List)
             .map((group) => GdiGroups.fromJson(group))
             .toList();
-        debugPrint("Grupos GDI obtidos com sucesso:");
-        gdiGroups.forEach((group) => debugPrint('(${group.name}, ${group.email})'));
+        //debugPrint("Grupos GDI obtidos com sucesso:");
+        //gdiGroups.forEach((group) => debugPrint('(${group.name}, ${group.email})'));
         GdiGroupsGoogle gdiGroupsGoogle = GdiGroupsGoogle(now, gdiGroups);
         return gdiGroupsGoogle;
       } else {
@@ -58,7 +62,7 @@ class GoogleService {
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
-        debugPrint("Membros do grupo $groupEmail obtidos com sucesso:");
+        //debugPrint("Membros do grupo $groupEmail obtidos com sucesso:");
         final List<dynamic> members = jsonData['members'] as List;
         return members.cast<Map<String, dynamic>>();
       } else {
@@ -69,53 +73,4 @@ class GoogleService {
       return [];
     }
   }
-
-  //Future<void> someRequest(String token, String email) async {
-  //  try {
-  //    //DateTime now = DateTime.now();
-  //    Uri url = Uri.https(Secrets.gdiGroupsGoogleHost, Secrets.somePath, {'email': email});
-  //
-  //    final response = await http.get(
-  //      url,
-  //      headers: {
-  //        'Content-type': 'application/json',
-  //        'Authorization': 'Bearer $token',
-  //      }
-  //    );
-  //
-  //    if (response.statusCode == 200) {
-  //      final jsonData = json.decode(response.body);
-  //      debugPrint(jsonData);
-  //    } else {
-  //      throw Exception('Falha ao buscar grupos GDI: ${response.statusCode}');
-  //    }
-  //  } catch (e) {
-  //    debugPrint("Erro ao obter alguma coisa do GDI: $e");
-  //  }
-  //}
-
-  // Future<void> registerToken(String firebaseIdToken, String devicetoken, String platform) async {
-    // try {
-      // var uri = Uri.https(Secrets.registerTokenCdcHost, Secrets.registerTokenCdcPath);
-// 
-      // var response = await http.post(
-        // uri,
-        // headers: {
-          // 'Content-Type': 'application/json',
-          // 'Authorization': 'Bearer $firebaseIdToken', // O token de autenticação
-        // },
-        // body: jsonEncode({"token": devicetoken, "platform": platform}),
-      // );
-// 
-      // if (response.statusCode == 200 || response.statusCode == 201) {
-        // debugPrint("Sucesso ao registrar token: ${response.body}");
-      // } else {
-        // debugPrint(
-          // "Erro ao registrar token: ${response.statusCode} - ${response.body}",
-        // );
-      // }
-    // } catch (e) {
-      // debugPrint("Erro ao conectar com servidor: $e");
-    // }
-  // }
 }

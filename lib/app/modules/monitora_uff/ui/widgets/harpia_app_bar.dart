@@ -11,11 +11,13 @@ class HarpiaAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      flexibleSpace: Container(
+        decoration: BoxDecoration(gradient: AppColors.appBarBottomGradient()),
+      ),
       title: const Text('Harpia'),
       centerTitle: true,
       elevation: 8,
       foregroundColor: Colors.white,
-      backgroundColor: AppColors.darkBlue(),
       actions: [
         PopupMenuButton(
           child: Padding(

@@ -12,8 +12,8 @@ Timer? _heartbeatTimer;
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   await Firebase.initializeApp(
-    name: 'uffmobileplus',
-    options: FirebaseOptionsUffmobileplus.currentPlatform,
+    //name: 'uffmobileplus',
+    options: FirebaseOptionsHarpia.currentPlatform,
   );
 
   service.on('stopService').listen((event) {
