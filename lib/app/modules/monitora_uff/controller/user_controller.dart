@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:harpia/app/data/repository/user_google_repository.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/data/provider/firebase_provider.dart';
+import 'package:harpia/app/modules/monitora_uff/models/google_group_member_model.dart';
 import 'package:harpia/app/modules/monitora_uff/models/user_model.dart';
 import 'package:get/get.dart';
 
@@ -34,55 +35,17 @@ class UserController extends GetxController {
         return;
       }
 
-      // 1. Carregar dados do Google Groups primeiro
-      final googleGroupsCtrl = Get.find<GoogleGroupsController>();
-
-      // Aguardar _loadGroups() terminar
-      await Future.doWhile(() async {
-        await Future.delayed(const Duration(milliseconds: 100));
-        return googleGroupsCtrl.isLoading.value;
-      });
-
-      // 2. Verificar se é admin (membro de GH)
-      // TODO: talvez eu não precise de UserModel nesta classe. 
-      // apenas usar isRootMember bastaria.
-      if (googleGroupsCtrl.isRootMember) {
-        _user.value = UserModel(
+      // Tentar carregar do Firestore
+      var firestoreUser = await _initializeUser();
+      if (firestoreUser != null) {
+        _user.value = firestoreUser;
+      } else {
+        // Criar documento no Firestore
+        await FirebaseProvider().setUser(UserModel(
           email: email,
           nome: _googleName,
-          funcao: 'administrador',
-        );
-        debugPrint('Usuário definido como administrador: $email');
-        return;
-      }
-
-      // 3. Verificar se é monitor (membro de algum GH')
-      final isMonitor = await googleGroupsCtrl.isUserInAnySubgroup(email);
-
-      if (isMonitor) {
-        // Tentar carregar do Firestore (pode já existir)
-        var firestoreUser = await _initializeUser();
-
-        if (firestoreUser != null) {
-          // Manter dados existentes do Firestore, mas garantir funcao='monitor'
-          firestoreUser.funcao = 'monitor';
-          _user.value = firestoreUser;
-        } else {
-          // Criar documento no Firestore
-          await FirebaseProvider().setUser(UserModel(
-            email: email,
-            nome: _googleName,
-            funcao: 'monitor',
-          ));
-
-          // Recarregar do Firestore para pegar o documento completo
-          _user.value = await _initializeUser();
-        }
-        debugPrint('Usuário definido como monitor: $email');
-      } else {
-        // Não é admin nem monitor
-        _user.value = null;
-        debugPrint('Usuário não autorizado: $email');
+        ));
+        _user.value = await _initializeUser();
       }
     } finally {
       isLoading.value = false;
@@ -96,15 +59,24 @@ class UserController extends GetxController {
     if (email.isEmpty) return null;
 
     final user = await FirebaseProvider().getUserByEmail(email);
-    //print('Firestore result: ${user?.email} / ${user?.funcao}');
     return user;
   }
 
-  bool isAdmin() => _user.value?.funcao == 'administrador';
+  bool isTrackable() {
+    final googleGroupsCtrl = Get.find<GoogleGroupsController>();
+    final currentUserEmail = _user.value?.email;
 
-  bool isTrackable() => _user.value?.funcao == 'monitor';
+    if (currentUserEmail == null) return false;
 
-  void deleteUser(String email) => FirebaseProvider().deleteUserByEmail(email);
+    // Procura o usuário logado entre os membros do grupo observado
+    final member = googleGroupsCtrl.observedMembers.firstWhereOrNull(
+      (m) => m.email == currentUserEmail,
+    );
+
+    // Retorna true se for manager ou member (owner não conta como trackable)
+    return member?.role == GoogleGroupRole.manager
+      || member?.role == GoogleGroupRole.member;
+  }
 
   String getUserName() {
     return user!.nome ??

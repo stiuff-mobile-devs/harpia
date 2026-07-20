@@ -1,5 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:harpia/app/data/connections/google_service.dart';
 import 'package:harpia/app/modules/monitora_uff/models/google_group_model.dart';
@@ -13,11 +13,9 @@ class GoogleGroupsController extends GetxController {
   RxList<GoogleGroupMember> observedMembers = RxList();
 
   /// Email do grupo raiz que contém os subgrupos do Harpia.
-  static const String rootGroupEmail = 'grupos.harpia@id.uff.br';
-
-  /// Indica se o usuário logado é membro (type == USER) do grupo raiz GH.
-  final RxBool _isRootMember = RxBool(false);
-  bool get isRootMember => _isRootMember.value;
+  /// Em debug, usa um grupo de teste; em release, o grupo de produção.
+  static String get rootGroupEmail =>
+      kReleaseMode ? 'grupos.harpia@id.uff.br' : 'harpiateste@id.uff.br';
 
   /// Lista de grupos que o usuário logado pode observar.
   /// Representa os subgrupos (type == GROUP) de [rootGroupEmail].
@@ -56,87 +54,41 @@ class GoogleGroupsController extends GetxController {
         return;
       }
 
-      // 1. Buscar todos os membros do grupo raiz 'grupos.harpia@id.uff.br'
-      final members = await _googleService.getGroupMembers(token, rootGroupEmail);
+      // 1. Buscar todas as entidades do grupo raiz 'grupos.harpia@id.uff.br'
+      final entities = await _googleService.getGroupEntities(token, rootGroupEmail);
 
-      // 2. Verificar se o usuário logado é membro (type == USER) do grupo raiz GH
-      _isRootMember.value = members.any((m) =>
-          m['email'] == userEmail && m['type'] == 'USER');
-      debugPrint("Usuário ${_isRootMember.value ? 'É' : 'NÃO É'} membro do grupo raiz $rootGroupEmail.");
-
-      // 3. Filtrar subgrupos (type == GROUP) de GH
-      final allSubgroupMembers = members
+      // 2. Filtrar subgrupos (type == GROUP) de GH
+      final subgroups = entities
         .where((m) => m['type'] == 'GROUP' && !(m['email']?.startsWith('space/')))
         .toList();
 
-      // 4. Criar GoogleGroupModel para cada subgrupo
-      //    (members e subgroups vazios, serão carregados sob demanda)
-      final List<GoogleGroupModel> allGroups = allSubgroupMembers.map((m) {
-        final email = m['email'] as String;
-        final name = _extractNameFromEmail(email);
-        return GoogleGroupModel(
-          name: name,
-          email: email,
-          description: '',
-          members: [],
-          subgroups: [],
-        );
-      }).toList();
-
-      // 5. Se for administrador (membro de GH), ver todos os subgrupos.
-      //    Se não for, filtrar apenas os subgrupos onde o usuário é membro.
-      List<GoogleGroupModel> finalGroups;
-      if (_isRootMember.value) {
-        finalGroups = allGroups;
-      } else {
-        finalGroups = [];
-        for (final group in allGroups) {
-          final groupMembers = await _googleService.getGroupMembers(token, group.email);
-          final isMember = groupMembers.any((m) =>
-              m['email'] == userEmail && m['type'] == 'USER');
-          if (isMember) {
-            finalGroups.add(group);
-          }
+      // 3. Para cada subgrupo, verificar se o usuário logado é membro
+      final List<GoogleGroupModel> finalGroups = [];
+      for (final entity in subgroups) {
+        final groupEmail = entity['email'] as String;
+        final groupName = _extractNameFromEmail(groupEmail);
+        final groupMembers = await _googleService.getGroupEntities(token, groupEmail);
+        final isMember = groupMembers.any((m) =>
+            m['email'] == userEmail && m['type'] == 'USER');
+        if (isMember) {
+          finalGroups.add(GoogleGroupModel(
+            name: groupName,
+            email: groupEmail,
+            description: '',
+            members: [],
+            subgroups: [],
+          ));
         }
-        debugPrint("Usuário é membro de ${finalGroups.length} subgrupo(s).");
       }
 
       _googleGroups.assignAll(finalGroups);
-      debugPrint("Grupos carregados: ${finalGroups.length}");
+      debugPrint("Usuário é membro de ${finalGroups.length} subgrupo(s).");
     } catch (e) {
       debugPrint("Erro ao carregar grupos: $e");
       _googleGroups.clear();
     } finally {
       isLoading.value = false;
     }
-  }
-
-  /// Verifica se um determinado email de usuário é membro (type == USER)
-  /// de algum subgrupo (GH') do grupo raiz.
-  /// Aguarda o carregamento inicial dos grupos, se necessário.
-  Future<bool> isUserInAnySubgroup(String userEmail) async {
-    // Aguardar _loadGroups() terminar
-    if (isLoading.value) {
-      await Future.doWhile(() async {
-        await Future.delayed(const Duration(milliseconds: 100));
-        return isLoading.value;
-      });
-    }
-
-    final user = _auth.currentUser;
-    if (user == null) return false;
-
-    final token = await user.getIdToken(true);
-    if (token == null) return false;
-
-    for (final group in _googleGroups) {
-      final members = await _googleService.getGroupMembers(token, group.email);
-      final isMember = members.any((m) =>
-          m['email'] == userEmail && m['type'] == 'USER');
-      if (isMember) return true;
-    }
-
-    return false;
   }
 
   /// Extrai um nome legível a partir do email do grupo.
@@ -180,7 +132,7 @@ class GoogleGroupsController extends GetxController {
       if (token == null) return;
 
       // Buscar membros do grupo selecionado
-      final members = await _googleService.getGroupMembers(token, selectedGroup.email);
+      final members = await _googleService.getGroupEntities(token, selectedGroup.email);
 
       // Filtrar apenas usuários e mapear para GoogleGroupMember
       // O name fica vazio (string vazia) pois será preenchido a partir
@@ -188,10 +140,11 @@ class GoogleGroupsController extends GetxController {
       final userMembers = members
           .where((m) => m['type'] == 'USER')
           .map((m) => GoogleGroupMember(
-                name: '',
-                email: m['email'] as String,
-                role: _parseRole(m['role'] as String),
-              ))
+              name: '', // TODO: substituir por m['name'] quando a API ficar pronta.
+              email: m['email'] as String,
+              role: _parseRole(m['role'] as String),
+            )
+          )
           .toList();
 
       observedMembers.value = userMembers;

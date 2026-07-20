@@ -8,7 +8,6 @@ import 'package:harpia/app/modules/monitora_uff/controller/google_groups_control
 import 'package:harpia/app/modules/monitora_uff/controller/permissions_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/tracking_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/user_controller.dart';
-import 'package:harpia/app/modules/login/controllers/auth_google_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/ui/widgets/group_selector.dart';
 import 'package:harpia/app/modules/monitora_uff/ui/widgets/harpia_app_bar.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
@@ -21,8 +20,7 @@ class MonitoraUFFPage extends StatelessWidget {
   const MonitoraUFFPage({super.key});
 
   UserController get userCtrl => Get.find<UserController>();
-  PermissionsController get permissionsCtrl =>
-      Get.find<PermissionsController>();
+  PermissionsController get permissionsCtrl => Get.find<PermissionsController>();
   TrackingController get trackingCtrl => Get.find<TrackingController>();
   GoogleGroupsController get googleGroupsController => Get.find<GoogleGroupsController>();
 
@@ -30,7 +28,7 @@ class MonitoraUFFPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: HarpiaAppBar(),
-      drawer: GroupSelector(),//_groupSelector(),
+      drawer: GroupSelector(),
       body: _body(context)
     );
   }
@@ -58,14 +56,11 @@ class MonitoraUFFPage extends StatelessWidget {
         return const Center(child: CircularProgressIndicator());
       }
 
-      // TODO
-      if (userCtrl.isAdmin()) {
-        return _adminDashboard(context);
-      } else if (userCtrl.isTrackable() & !kIsWeb) {
-        return _monitorPage(context);
+      if (userCtrl.isTrackable() & !kIsWeb & !permissionsCtrl.arePermissionsGranted()) {
+        return _permissionScreen();
       }
 
-      return _unauthorizedPage();
+      return mapa(context);
     });
   }
 
@@ -86,22 +81,22 @@ class MonitoraUFFPage extends StatelessWidget {
             },
           ),
           children: [
-            tile(),
-            trajectoryPolylines(),
-            trajectoryEndpointMarkers(),
-            firebaseMarkers(),
-            toggleButton(),
+            _tile(),
+            _trajectoryPolylines(),
+            _trajectoryEndpointMarkers(),
+            _firebaseMarkers(),
+            userCtrl.isTrackable() & !kIsWeb ? _toggleButton() : Container(),
             _centralizeButton(),
           ],
         ),
-        _selectedUserBar(context),
+        _highlightedUserBar(context),
       ],
     );
   }
 
   /// Desenha a trajetória do usuário focado (aquele cuja barra inferior
   /// está visível). A trajetória aparece e desaparece junto com a barra.
-  Widget trajectoryPolylines() {
+  Widget _trajectoryPolylines() {
     return Obx(() {
       final user = trackingCtrl.selectedFirebaseUser.value;
       final points = trackingCtrl.selectedTrajectory;
@@ -134,7 +129,7 @@ class MonitoraUFFPage extends StatelessWidget {
     });
   }
 
-  Widget trajectoryEndpointMarkers() {
+  Widget _trajectoryEndpointMarkers() {
     return Obx(() {
       final user = trackingCtrl.selectedFirebaseUser.value;
       final points = trackingCtrl.selectedTrajectory;
@@ -199,7 +194,7 @@ class MonitoraUFFPage extends StatelessWidget {
 
   /// Usuário verá essa tela apenas se algumas das permissões necessárias
   /// ainda não tiver sido concedida.
-  Widget permissionScreen() {
+  Widget _permissionScreen() {
     return Container(
       decoration: BoxDecoration(gradient: AppColors.appBarBottomGradient()),
       child: Obx(
@@ -287,14 +282,14 @@ class MonitoraUFFPage extends StatelessWidget {
     );
   }
 
-  Widget tile() {
+  Widget _tile() {
     return TileLayer(
       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       userAgentPackageName: 'br.uff.sti.uffmobileplus',
     );
   }
 
-  Widget firebaseMarkers() {
+  Widget _firebaseMarkers() {
     const double markerSize = 50.0;
 
     return Obx(
@@ -368,7 +363,7 @@ class MonitoraUFFPage extends StatelessWidget {
     );
   }
 
-  Widget _selectedUserBar(BuildContext context) {
+  Widget _highlightedUserBar(BuildContext context) {
     return Obx(() {
       final user = trackingCtrl.selectedFirebaseUser.value;
 
@@ -397,16 +392,6 @@ class MonitoraUFFPage extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            "Monitor",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
                         IconButton(
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
@@ -480,78 +465,24 @@ class MonitoraUFFPage extends StatelessWidget {
     });
   }
 
-  Widget toggleButton() {
-    return userCtrl.isTrackable()
-        ? Positioned(
-            top: 16,
-            right: 16,
-            child: Obx(
-              () => FloatingActionButton(
-                heroTag: "btnToggleTracking",
-                onPressed: trackingCtrl.toggleService,
-                backgroundColor: trackingCtrl.isTrackingEnabled.value
-                    ? Colors.green
-                    : Colors.red,
-                child: Icon(
-                  trackingCtrl.isTrackingEnabled.value
-                      ? Icons.location_on
-                      : Icons.location_off,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          )
-        : Container();
-  }
-
-  Widget _adminDashboard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(gradient: AppColors.darkBlueToBlackGradient()),
-      child: mapa(context),
-    );
-  }
-
-  Widget _monitorPage(BuildContext context) {
-    return Obx(
-      () => permissionsCtrl.arePermissionsGranted()
-          ? mapa(context)
-          : permissionScreen(),
-    );
-  }
-
-  Widget _unauthorizedPage() {
-    return Center(
-      child: Column(
-        children: [
-          Center(
-            child: Text("Você não tem permissão para utilizar este serviço."),
+  Widget _toggleButton() {
+    return Positioned(
+      top: 16,
+      right: 16,
+      child: Obx(
+        () => FloatingActionButton(
+          heroTag: "btnToggleTracking",
+          onPressed: trackingCtrl.toggleService,
+          backgroundColor: trackingCtrl.isTrackingEnabled.value
+              ? Colors.green
+              : Colors.red,
+          child: Icon(
+            trackingCtrl.isTrackingEnabled.value
+                ? Icons.location_on
+                : Icons.location_off,
+            color: Colors.white,
           ),
-          // TODO: criar widget separado para esse botão
-          Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: () =>
-                        Get.find<AuthGoogleController>().logout(),
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Logout'),
-                  ),
-                ),
-              ),
-            )
-        ],
+        ),
       ),
     );
   }

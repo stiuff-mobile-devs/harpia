@@ -26,7 +26,7 @@ void onStart(ServiceInstance service) async {
 
   service.on('setUserInfo').listen((event) {
     if (event != null) {
-      updateLocation(service, event['email'], event['name'], event['funcao']);
+      updateLocation(service, event['email'], event['name']);
     }
   });
 
@@ -41,7 +41,7 @@ Future<bool> onIosBackground(ServiceInstance service) async {
 }
 
 // TODO: passar UserModel para essa função em vez de email, nome.
-void updateLocation(ServiceInstance service, String email, String name, String funcao) {
+void updateLocation(ServiceInstance service, String email, String name) {
   // Configuração do GPS
   late LocationSettings locationSettings;
 
@@ -85,7 +85,6 @@ void updateLocation(ServiceInstance service, String email, String name, String f
       await FirebaseProvider().updateLocationAndTimestamp(
         email: email,
         nome: name,
-        funcao: funcao,
         lat: position.latitude,
         lng: position.longitude,
         timestamp: DateTime.now(),

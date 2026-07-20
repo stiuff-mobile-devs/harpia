@@ -395,7 +395,6 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
       _service.invoke("setUserInfo", {
         "email": userCtrl.user!.email,
         "name": userCtrl.getUserName(),
-        "funcao": userCtrl.user!.funcao, //_currentUser.funcao,
       });
     });
   

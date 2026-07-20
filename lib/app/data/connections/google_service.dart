@@ -48,7 +48,7 @@ class GoogleService {
   /// 
   /// Retorna a lista bruta de membros (Map) conforme retornado pela API.
   /// Cada membro possui: id, email, role, type (USER ou GROUP), status.
-  Future<List<Map<String, dynamic>>> getGroupMembers(String token, String groupEmail) async {
+  Future<List<Map<String, dynamic>>> getGroupEntities(String token, String groupEmail) async {
     try {
       Uri url = Uri.https(Secrets.gdiGoogleHost, Secrets.gdiGroupMembers, {'email': groupEmail});
 
