@@ -26,7 +26,7 @@ class GroupSelector extends StatelessWidget {
               group.description,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.white, fontSize: 12),
+              style: TextStyle(color: Colors.white60, fontSize: 12),
             )
           ]
         ],
@@ -50,8 +50,7 @@ class GroupSelector extends StatelessWidget {
             decoration: BoxDecoration(color: AppColors.darkBlue()),
             child: Column(
               children: [
-                Text('Grupos', style: TextStyle(color: Colors.white, fontSize: 24)),
-                Obx(() => Text('Grupo observado: ${googleGroupsController.observedGroup}', style: TextStyle(color: Colors.white)))
+                Text('Grupos', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 24)),
               ],
             ),
           ),

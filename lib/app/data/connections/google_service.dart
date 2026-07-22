@@ -61,6 +61,7 @@ class GoogleService {
       );
 
       if (response.statusCode == 200) {
+        //debugPrint('\n\n${response.body}\n\n');
         final jsonData = json.decode(response.body);
         //debugPrint("Membros do grupo $groupEmail obtidos com sucesso:");
         final List<dynamic> members = jsonData['members'] as List;
