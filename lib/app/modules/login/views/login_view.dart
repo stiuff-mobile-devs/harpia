@@ -18,10 +18,25 @@ class LoginView extends GetView<LoginController> {
       );
   }
 
+  //Widget _body() {
+  //  //return Center(
+  //  //    child: _loginButton()
+  //  //  );
+  //  return _loginButton();
+  //}
+
   Widget _body() {
     return Center(
-        child: _loginButton()
-      );
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 50),
+          _loginButton()
+        ],
+      )
+    );
   }
 
   Widget _loginButton() {
