@@ -46,4 +46,6 @@ app.*.map.json
 
 
 lib/app/config/secrets.dart
+key.properties
+firepit-log.txt
 .firebase/

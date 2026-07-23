@@ -31,7 +31,7 @@ class AuthGoogleService {
       // clientId é obrigatório na web
       // NOTE: estou usando o mesmo id para clientId e serverClientId
       clientId: kIsWeb ? Secrets.umpGoogleServerWebClientId : null,
-      serverClientId: kIsWeb ? null : Secrets.umpGoogleServerWebClientId,
+      serverClientId: kIsWeb ? null : Secrets.harpiaGoogleServerWebClientId,
     );
 
     debugPrint('AuthGoogleService: initialize done');
