@@ -9,13 +9,16 @@ class GoogleGroupsController extends GetxController {
   final GoogleService _googleService = GoogleService();
   final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
 
+  final RxString _loadError = RxString('');
+  RxString get loadError => _loadError;
+
   RxString observedGroup = RxString('Nenhum');
   RxList<GoogleGroupMember> observedMembers = RxList();
 
   /// Email do grupo raiz que contém os subgrupos do Harpia.
   /// Em debug, usa um grupo de teste; em release, o grupo de produção.
   static String get rootGroupEmail =>
-      kReleaseMode ? 'grupos.harpia@id.uff.br' : 'grupos.harpia@id.uff.br';
+      kReleaseMode ? 'grupos.harpia@id.uff.br' : 'harpiateste@id.uff.br';
 
   /// Lista de grupos que o usuário logado pode observar.
   /// Representa os subgrupos (type == GROUP) de [rootGroupEmail].
@@ -32,10 +35,12 @@ class GoogleGroupsController extends GetxController {
   }
 
   Future<void> _loadGroups() async {
+    loadError.value = '';
     try {
       final user = _auth.currentUser;
       if (user == null) {
         debugPrint("Usuário não autenticado.");
+        loadError.value = 'not_autenticated';
         isLoading.value = false;
         return;
       }
@@ -43,6 +48,7 @@ class GoogleGroupsController extends GetxController {
       final token = await user.getIdToken(true);
       if (token == null) {
         debugPrint("Token não disponível.");
+        _loadError.value = 'no_token';
         isLoading.value = false;
         return;
       }
@@ -50,6 +56,7 @@ class GoogleGroupsController extends GetxController {
       final userEmail = user.email;
       if (userEmail == null) {
         debugPrint("Email do usuário não disponível.");
+        _loadError.value = 'no_email';
         isLoading.value = false;
         return;
       }
@@ -61,22 +68,24 @@ class GoogleGroupsController extends GetxController {
       // ficar apenas com as entidades cujo 'type' == 'GROUP'
       // e cujo 'email' não começa com 'space/'.
       final subgroups = entities
-        .where((e) => e['type'] == 'GROUP' && !(e['email']?.startsWith('space/')))
+        .where((e) => e['type'] == 'GROUP' && (e['email'] as String?)?.startsWith('space/') != true)
         .toList();
 
       // 3. Para cada subgrupo, verificar se o usuário logado é membro
       // e, se for, adicioná-lo a lista a ser 'finalGroups' que é exibida
       // na aba de grupos da interface.
-      final List<GoogleGroupModel> finalGroups = [];
+      //final List<GoogleGroupModel> finalGroups = [];
       for (final subgroup in subgroups) {
         debugPrint('\n\n\n$subgroup\n\n\n');
-        final groupEmail = subgroup['email'] as String;
-        final groupName = subgroup['name'] as String; 
-        final groupDescription = subgroup['description'] as String;
+        final groupEmail = subgroup['email'] ?? 'Email indisponível';
+        final groupName = subgroup['name'] ?? 'Nome indisponível';
+        final groupDescription = subgroup['description'] ?? 'Descrição indisponível';
         final groupMembers = await _googleService.getGroupEntities(token, groupEmail);
-        final isMember = groupMembers.any((m) => m['email'] == userEmail && m['type'] == 'USER');
+        final isMember = groupMembers.any(
+          (m) => m['email']?.toString().trim().toLowerCase() == userEmail.trim().toLowerCase()
+        );
         if (isMember) {
-          finalGroups.add(GoogleGroupModel(
+          _observableGoogleGroups.add(GoogleGroupModel(
             name: groupName,
             email: groupEmail,
             description: groupDescription,
@@ -85,12 +94,9 @@ class GoogleGroupsController extends GetxController {
           ));
         }
       }
-
-      _observableGoogleGroups.assignAll(finalGroups);
-      //debugPrint("Usuário é membro de ${finalGroups.length} subgrupo(s).");
-    } catch (e) {
-      // TODO: debugPrint só faz sentido em ambiente de desenvolvimento
-      debugPrint("Erro ao carregar grupos: $e");
+    } catch(e, stack) {
+      debugPrint('$e\n$stack');
+      _loadError.value = '$e';
       _observableGoogleGroups.clear();
     } finally {
       isLoading.value = false;

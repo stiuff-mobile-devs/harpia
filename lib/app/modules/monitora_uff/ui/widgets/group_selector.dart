@@ -64,9 +64,16 @@ class GroupSelector extends StatelessWidget {
             }
 
             if (googleGroupsController.googleGroups.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: Text('Nenhum grupo disponível', style: TextStyle(color: Colors.white))),
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Column(
+                    children: [
+                      const Text('Nenhum grupo disponível', style: TextStyle(color: Colors.white)),
+                      SizedBox(height: 6),
+                      Text('${googleGroupsController.loadError}', style: TextStyle(color: Colors.white60))
+                    ],
+                  )),
               );
             }
 
