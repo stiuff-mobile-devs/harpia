@@ -27,22 +27,27 @@ class AuthGoogleService {
   Future<void> _initialize() async {
     debugPrint('AuthGoogleService: initialize start');
 
-    await _googleSignIn.initialize(
-      // clientId é obrigatório na web
-      // NOTE: estou usando o mesmo id para clientId e serverClientId
-      clientId: kIsWeb ? Secrets.umpGoogleServerWebClientId : null,
-      serverClientId: kIsWeb ? null : Secrets.harpiaGoogleServerWebClientId,
-    );
+    try {
+      await _googleSignIn.initialize(
+        // clientId é obrigatório na web
+        // NOTE: estou usando o mesmo id para clientId e serverClientId
+        clientId: kIsWeb ? Secrets.umpGoogleServerWebClientId : null,
+        serverClientId: kIsWeb ? null : Secrets.harpiaGoogleServerWebClientId,
+      );
 
-    debugPrint('AuthGoogleService: initialize done');
+      debugPrint('AuthGoogleService: initialize done');
 
-    // só na web o login chega via evento (o botão é do próprio Google)
-    if (kIsWeb) {
-      //_googleSignIn.authenticationEvents.listen(_onWebAuthEvent);
-      _googleSignIn.authenticationEvents.listen((event) {
-        debugPrint('AuthGoogleService event: $event');
-        _onWebAuthEvent(event);
-      });
+      // só na web o login chega via evento (o botão é do próprio Google)
+      if (kIsWeb) {
+        //_googleSignIn.authenticationEvents.listen(_onWebAuthEvent);
+        _googleSignIn.authenticationEvents.listen((event) {
+          debugPrint('AuthGoogleService event: $event');
+          _onWebAuthEvent(event);
+        });
+      }
+    } catch (e) {
+      debugPrint('AuthGoogleService: initialize error: $e');
+      rethrow;
     }
   }
   
@@ -68,62 +73,42 @@ class AuthGoogleService {
 
     if (kIsWeb) return null;
 
-    try {
-      //await _init;
-      var account = await _googleSignIn.authenticate();
-      return _signIn(account);
-    } catch (e) {
-      debugPrint('Error during Google sign-in: $e');
-      return null;
-    }
+    //await _init;
+    var account = await _googleSignIn.authenticate();
+    return _signIn(account);
   }
 
   Future<UserGoogleModel?> _signIn(GoogleSignInAccount account) async {
-    try {
-      final GoogleSignInAuthentication googleAuth = account.authentication;
-      final authCredential = fb.GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
-      );
-      var userCredential = await _auth.signInWithCredential(authCredential);
+    final GoogleSignInAuthentication googleAuth = account.authentication;
+    final authCredential = fb.GoogleAuthProvider.credential(
+      idToken: googleAuth.idToken,
+    );
+    var userCredential = await _auth.signInWithCredential(authCredential);
 
-      return await _createUserDoc(userCredential);
-    } catch (e) {
-      debugPrint('Error during Google sign-in: $e');
-      return null;
-    }
+    return await _createUserDoc(userCredential);
   }
 
   Future<UserGoogleModel?> _createUserDoc(
     fb.UserCredential userCredential,
   ) async {
-    try {
-      final userDoc = await _userRepository.createUserDoc(
-        userCredential.user!.email ?? '',
-        userCredential.user!.displayName ?? '',
-        userCredential.user!.uid,
-        userCredential.user!.photoURL ?? '',
-      );
+    final userDoc = await _userRepository.createUserDoc(
+      userCredential.user!.email ?? '',
+      userCredential.user!.displayName ?? '',
+      userCredential.user!.uid,
+      userCredential.user!.photoURL ?? '',
+    );
 
-      return userDoc;
-    } catch (err) {
-      debugPrint(err.toString());
-      return null;
-    }
+    return userDoc;
   }
 
   Future<UserGoogleModel?> trySignInGoogle() async {
     await _init;
-    try {
-      final account = _googleSignIn.attemptLightweightAuthentication();
-      if (account == null) {
-        return null;
-      }
-      final googleUser = await account;
-      return googleUser != null ? await _signIn(googleUser) : null;
-    } catch (e) {
-      debugPrint('Error initializing GoogleSignIn: $e');
+    final account = _googleSignIn.attemptLightweightAuthentication();
+    if (account == null) {
       return null;
     }
+    final googleUser = await account;
+    return googleUser != null ? await _signIn(googleUser) : null;
   }
 
   Future<void> logoutGoogle() async {

@@ -36,6 +36,15 @@ class AnimatedUserMarker {
     return false; // Posição não mudou
   }
 
+  /// Define a posição IMEDIATAMENTE sem animação.
+  /// Útil para trocas de dia onde a transição deve ser abrupta.
+  void setPositionImmediate(double lat, double lng) {
+    final newPosition = LatLng(lat, lng);
+    _currentRenderedPosition = newPosition;
+    _targetPosition = newPosition;
+    _animationProgress = 1.0; // Completa imediatamente
+  }
+
   /// Atualiza o progresso da animação (0.0 a 1.0).
   /// Retorna a posição interpolada.
   LatLng updateAnimationProgress(double progress) {

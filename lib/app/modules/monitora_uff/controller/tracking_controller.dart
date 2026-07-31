@@ -7,20 +7,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart'
   show
     AlertDialog,
-    BorderSide,
-    BuildContext,
-    ColorScheme,
     Colors,
-    DatePickerThemeData,
     Text,
     TextButton,
-    TextButtonThemeData,
-    TextStyle,
-    Theme,
-    WidgetState,
-    WidgetStateColor,
-    WidgetsBindingObserver,
-    showDatePicker;
+    WidgetsBindingObserver;
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 //import 'package:flutter_compass/flutter_compass.dart';
@@ -28,6 +18,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/user_controller.dart';
+import 'package:harpia/app/modules/monitora_uff/controller/calendar_controller.dart';
+import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/data/provider/firebase_provider.dart';
 import 'package:harpia/app/modules/monitora_uff/models/animated_user_marker.dart';
 import 'package:harpia/app/modules/monitora_uff/models/location_point.dart';
@@ -60,12 +52,19 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
   final Rx<double?> heading = Rx<double?>(null);
   //StreamSubscription<CompassEvent>? _compassSubscription;
 
+  /// Indica se o dia observado no calendário é o dia atual.
+  bool get isObservingToday =>
+      Get.find<CalendarController>().isObservingToday;
+
   /// Mapa de usuários com suas posições animadas para renderização suave.
   final Map<String, AnimatedUserMarker> _animatedMarkers =
       <String, AnimatedUserMarker>{};
 
   /// RxMap reativo dos marcadores animados para trigger rebuilds na UI.
   final RxMap<String, LatLng> animatedMarkerPositions = <String, LatLng>{}.obs;
+
+  /// Emails dos usuários que possuem pelo menos um ponto registrado no dia observado.
+  final RxSet<String> usersWithPointsOnObservedDay = <String>{}.obs;
 
   /// Timer para animar a transição dos marcadores.
   Timer? _markerAnimationTimer;
@@ -76,10 +75,198 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
   /// Duração da animação em milissegundos.
   static const int _animationDurationMs = 500;
 
-  /// Trajetória recente do usuário focado (aquele cuja barra inferior está visível).
-  final RxList<LocationPoint> selectedTrajectory = <LocationPoint>[].obs;
-  final Rxn<DateTime> selectedTrajectoryDay = Rxn<DateTime>();
-  StreamSubscription<List<LocationPoint>>? _trajectorySubscription;
+  /// Trajetórias dos usuários destacados (highlightedObservedUsers).
+  /// Chave = email do usuário, valor = lista de pontos da trajetória.
+  final RxMap<String, List<LocationPoint>> highlightedTrajectories =
+      <String, List<LocationPoint>>{}.obs;
+
+  /// Subscriptions para as trajetórias dos usuários destacados.
+  final Map<String, StreamSubscription<List<LocationPoint>>>
+      _highlightedTrajectorySubscriptions = {};
+
+  /// Timer para debounce do listener de highlightedObservedUsers.
+  Timer? _highlightedUsersDebounce;
+
+  /// Inicia o worker que observa mudanças em highlightedObservedUsers.
+  void _setupHighlightedUsersListener() {
+    ever(
+      Get.find<GoogleGroupsController>().highlightedObservedUsers,
+      (_) {
+        // Debounce para evitar múltiplas reações quando toggleHighlight
+        // é chamado rapidamente (adiciona/remove um item por vez)
+        _highlightedUsersDebounce?.cancel();
+        _highlightedUsersDebounce = Timer(
+          const Duration(milliseconds: 100),
+          _syncHighlightedTrajectories,
+        );
+      },
+    );
+  }
+
+  /// Sincroniza as subscriptions de trajetórias com a lista atual de
+  /// highlightedObservedUsers.
+  void _syncHighlightedTrajectories() {
+    final googleGroupsCtrl = Get.find<GoogleGroupsController>();
+    final calendarCtrl = Get.find<CalendarController>();
+    final day = calendarCtrl.observedDay.value;
+    final members = googleGroupsCtrl.highlightedObservedUsers;
+
+    final currentEmails = members.map((m) => m.email).toSet();
+
+    // Cancela subscriptions de usuários que não estão mais destacados
+    for (final email in _highlightedTrajectorySubscriptions.keys.toList()) {
+      if (!currentEmails.contains(email)) {
+        _highlightedTrajectorySubscriptions[email]?.cancel();
+        _highlightedTrajectorySubscriptions.remove(email);
+        highlightedTrajectories.remove(email);
+      }
+    }
+
+    // Inicia novas subscriptions para usuários recém-destacados
+    for (final member in members) {
+      if (!_highlightedTrajectorySubscriptions.containsKey(member.email)) {
+        _subscribeToHighlightedTrajectory(member.email, day);
+      }
+    }
+  }
+
+  /// Inscreve-se na trajetória de um usuário destacado.
+  void _subscribeToHighlightedTrajectory(String email, DateTime day) {
+    final stream = FirebaseProvider().getTrajectoryForDate(email, day: day);
+
+    final subscription = stream.listen((points) {
+      highlightedTrajectories[email] = points;
+    });
+
+    _highlightedTrajectorySubscriptions[email] = subscription;
+  }
+
+  /// Atualiza as subscriptions de trajetórias destacadas quando o dia
+  /// observado muda.
+  void onObservedDayChanged(DateTime day) {
+    // Recria todas as subscriptions para o novo dia
+    for (final sub in _highlightedTrajectorySubscriptions.values) {
+      sub.cancel();
+    }
+    _highlightedTrajectorySubscriptions.clear();
+    highlightedTrajectories.clear();
+
+    final googleGroupsCtrl = Get.find<GoogleGroupsController>();
+    for (final member in googleGroupsCtrl.highlightedObservedUsers) {
+      _subscribeToHighlightedTrajectory(member.email, day);
+    }
+
+    // Recarrega os marcadores para a respectiva localização conhecida no dia.
+    _refreshMarkersForObservedDay(day);
+  }
+
+  /// Recarrega as posições dos marcadores para o dia observado.
+  ///
+  /// Quando o dia observado é o atual, restaura as posições em tempo real
+  /// vindas do stream de `firebaseUsers`. Quando é um dia passado, busca a
+  /// última localização conhecida de cada usuário observado no histórico.
+  Future<void> _refreshMarkersForObservedDay(DateTime day) async {
+    final googleGroupsCtrl = Get.find<GoogleGroupsController>();
+    final observedEmails =
+        googleGroupsCtrl.observedMembers.map((m) => m.email).toSet();
+
+    if (isObservingToday) {
+      // Verifica, no histórico do dia, quais usuários observados possuem pelo
+      // menos um ponto registrado hoje. Apenas estes devem aparecer no mapa.
+      usersWithPointsOnObservedDay.clear();
+      final futures = <Future<void>>[];
+      for (final email in observedEmails) {
+        futures.add(() async {
+          final hasPoints = await FirebaseProvider().hasPointsOnDate(email, day);
+          if (hasPoints) {
+            usersWithPointsOnObservedDay.add(email);
+          }
+        }());
+      }
+      await Future.wait(futures);
+
+      // Remove marcadores de usuários que não possuem pontos hoje.
+      final toRemoveToday = _animatedMarkers.keys
+          .where((email) => !usersWithPointsOnObservedDay.contains(email))
+          .toList();
+      for (final email in toRemoveToday) {
+        _animatedMarkers.remove(email);
+        animatedMarkerPositions.remove(email);
+      }
+
+      // Atualiza posições IMEDIATAMENTE sem animação para troca de dia
+      for (final user in firebaseUsers) {
+        if (usersWithPointsOnObservedDay.contains(user.email)) {
+          if (_animatedMarkers.containsKey(user.email)) {
+            _animatedMarkers[user.email]!.setPositionImmediate(
+              user.lat ?? 0.0,
+              user.lng ?? 0.0,
+            );
+          } else {
+            _animatedMarkers[user.email] = AnimatedUserMarker(user: user);
+          }
+          animatedMarkerPositions[user.email] = LatLng(user.lat ?? 0.0, user.lng ?? 0.0);
+        }
+      }
+      return;
+    }
+
+    // Dia passado: busca a última posição conhecida no histórico para cada
+    // usuário observado.
+    final futures = <Future<void>>[];
+    for (final email in observedEmails) {
+      futures.add(() async {
+        final point = await FirebaseProvider().getLastKnownPositionForDate(
+          email,
+          day: day,
+        );
+
+        if (point != null) {
+          final user = firebaseUsers.firstWhereOrNull((u) => u.email == email);
+          if (_animatedMarkers.containsKey(email)) {
+            _animatedMarkers[email]!.updateTargetPosition(point.lat, point.lng);
+          } else if (user != null) {
+            _animatedMarkers[email] = AnimatedUserMarker(user: user);
+          }
+          animatedMarkerPositions[email] = LatLng(point.lat, point.lng);
+        } else {
+          // Sem registro para o dia: remove o marcador.
+          _animatedMarkers.remove(email);
+          animatedMarkerPositions.remove(email);
+        }
+      }());
+    }
+
+    await Future.wait(futures);
+
+    // Remove marcadores de usuários que não estão mais sendo observados.
+    final toRemove = _animatedMarkers.keys
+        .where((email) => !observedEmails.contains(email))
+        .toList();
+    for (final email in toRemove) {
+      _animatedMarkers.remove(email);
+      animatedMarkerPositions.remove(email);
+    }
+
+    // Atualiza posições IMEDIATAMENTE sem animação para troca de dia
+    for (final email in observedEmails) {
+      final marker = _animatedMarkers[email];
+      if (marker != null && animatedMarkerPositions.containsKey(email)) {
+        final pos = animatedMarkerPositions[email]!;
+        marker.setPositionImmediate(pos.latitude, pos.longitude);
+      }
+    }
+  }
+
+  /// Remove todas as trajetórias destacadas.
+  void clearHighlightedTrajectories() {
+    for (final sub in _highlightedTrajectorySubscriptions.values) {
+      sub.cancel();
+    }
+    _highlightedTrajectorySubscriptions.clear();
+    highlightedTrajectories.clear();
+  }
+
   Future<void> centerMapOnCurrentLocation() async {
     try {
       mapController.move(LatLng(position.latitude, position.longitude), 15.0);
@@ -111,21 +298,48 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
     //  if (kDebugMode) print('Compass not available or error: $e');
     //}
 
-    // TODO: encapsular em um método
-    if (userCtrl.isTrackable()) {
-      position = await Geolocator.getCurrentPosition();
-    }
+    // Configura listener para highlightedObservedUsers
+    _setupHighlightedUsersListener();
+
+    // Observa mudanças no observedDay para recarregar trajetórias destacadas
+    ever(Get.find<CalendarController>().observedDay, (DateTime day) {
+      onObservedDayChanged(day);
+    });
+
+    // Observa mudanças nos membros observados para atualizar marcadores ao trocar de grupo
+    ever(Get.find<GoogleGroupsController>().observedMembers, (_) {
+      final day = Get.find<CalendarController>().observedDay.value;
+      _refreshMarkersForObservedDay(day);
+    });
+
+    _initPosition();
 
     isTrackingEnabled.value = await _service.isRunning();
   }
 
+  Future<void> _initPosition() async {
+    if (userCtrl.isTrackable()) {
+      position = await Geolocator.getCurrentPosition();
+    }
+  }
+
   /// Chamado quando a lista de usuários do Firebase é atualizada.
   /// Inicializa ou atualiza as animações dos marcadores.
+  ///
+  /// Quando o dia observado não é o atual, as posições em tempo real são
+  /// ignoradas para não sobrescrever as localizações históricas exibidas.
   void _onFirebaseUsersUpdated(List<UserModel> users) {
+    // Mantém o cache de usuários sempre atualizado, mas só reposiciona os
+    // marcadores quando observamos o dia atual.
+    if (!isObservingToday) return;
+
     bool shouldAnimateMarkers = false;
 
     for (final user in users) {
-      if (_animatedMarkers.containsKey(user.email)) {
+      final shouldShowToday = usersWithPointsOnObservedDay.contains(user.email);
+      final exists = _animatedMarkers.containsKey(user.email);
+
+      if (exists && shouldShowToday) {
         // Atualiza posição existente
         final didUpdate =
             _animatedMarkers[user.email]!.updateTargetPosition(
@@ -135,11 +349,15 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
         if (didUpdate) {
           shouldAnimateMarkers = true;
         }
-      } else {
+      } else if (!exists && shouldShowToday) {
         // Cria novo marcador animado
         _animatedMarkers[user.email] = AnimatedUserMarker(user: user);
         animatedMarkerPositions[user.email] =
             LatLng(user.lat ?? 0.0, user.lng ?? 0.0);
+      } else if (exists && !shouldShowToday) {
+        // Usuário deixou de ter pontos hoje: remove marcador.
+        _animatedMarkers.remove(user.email);
+        animatedMarkerPositions.remove(user.email);
       }
     }
 
@@ -205,125 +423,10 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
 
   void openFirebaseUserDetails(UserModel user) {
     selectedFirebaseUser.value = user;
-    selectedTrajectoryDay.value = null;
-    _subscribeToTrajectory(user);
-  }
-
-  void _subscribeToTrajectory(UserModel user, {DateTime? day}) {
-    _trajectorySubscription?.cancel();
-    selectedTrajectory.clear();
-
-    final stream = day == null
-        ? FirebaseProvider().getRecentTrajectory(user.email)
-        : FirebaseProvider().getTrajectoryForDate(user.email, day: day);
-
-    _trajectorySubscription = stream.listen((points) {
-      selectedTrajectory.value = points;
-    });
-  }
-
-  Future<void> pickTrajectoryDate(BuildContext context) async {
-    final user = selectedFirebaseUser.value;
-    if (user == null) return;
-
-    final now = DateTime.now();
-    final initial = selectedTrajectoryDay.value ?? now;
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime(initial.year, initial.month, initial.day),
-      firstDate: DateTime(now.year - 5, 1, 1),
-      lastDate: DateTime(now.year, now.month, now.day),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppColors.darkBlue(),
-              onPrimary: Colors.white,
-              onSurface: AppColors.darkBlue(),
-              secondary: AppColors.mediumBlue(),
-              onSecondary: Colors.white,
-              surface: Colors.white,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.mediumBlue(),
-              ),
-            ),
-            datePickerTheme: DatePickerThemeData(
-              backgroundColor: Colors.white,
-              headerBackgroundColor: AppColors.darkBlue(),
-              headerForegroundColor: Colors.white,
-              dayForegroundColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return Colors.white;
-                }
-                if (states.contains(WidgetState.disabled)) {
-                  return Colors.grey;
-                }
-                return AppColors.darkBlue();
-              }),
-              dayBackgroundColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppColors.mediumBlue();
-                }
-                return Colors.transparent;
-              }),
-              todayForegroundColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return Colors.white;
-                }
-                return AppColors.mediumBlue();
-              }),
-              todayBackgroundColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppColors.mediumBlue();
-                }
-                return Colors.transparent;
-              }),
-              todayBorder: BorderSide(color: AppColors.mediumBlue(), width: 1),
-              yearForegroundColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return Colors.white;
-                }
-                return AppColors.darkBlue();
-              }),
-              yearBackgroundColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppColors.mediumBlue();
-                }
-                return Colors.transparent;
-              }),
-              yearOverlayColor: WidgetStateColor.resolveWith((_) {
-                return AppColors.lightBlue();
-              }),
-              dayOverlayColor: WidgetStateColor.resolveWith((_) {
-                return AppColors.lightBlue();
-              }),
-              rangeSelectionBackgroundColor: AppColors.lightBlue(),
-              dividerColor: AppColors.lightBlue(),
-              weekdayStyle: TextStyle(color: AppColors.alternativeMediumBlue()),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked == null) return;
-
-    final normalized = DateTime(picked.year, picked.month, picked.day);
-    selectedTrajectoryDay.value = normalized;
-    _subscribeToTrajectory(user, day: normalized);
   }
 
   void closeFirebaseUserDetails() {
     selectedFirebaseUser.value = null;
-    selectedTrajectoryDay.value = null;
-
-    _trajectorySubscription?.cancel();
-    _trajectorySubscription = null;
-    selectedTrajectory.clear();
   }
 
   Future<void> toggleService() async {
@@ -421,13 +524,10 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
   @override
   void onClose() {
     //_compassSubscription?.cancel();
-    _trajectorySubscription?.cancel();
     _markerAnimationTimer?.cancel();
     mapController.dispose();
     super.onClose();
   }
-
-
 
   Future<void> launchGoogleMeet(String email) async {
     if (kIsWeb) {

@@ -42,10 +42,23 @@ class LoginView extends GetView<LoginController> {
   Widget _loginButton() {
     final authController = Get.find<AuthGoogleController>();
 
-    // Obx reconstrói esse widget quando googleReady mudar de valor
+    // Obx reconstrói esse widget quando googleReady ou isLoading mudar de valor
     return Obx(() {
       if (!authController.googleReady.value) {
         return const CircularProgressIndicator();
+      }
+      if (authController.isLoading.value) {
+        return const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 16),
+            Text(
+              "Fazendo login...",
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
+        );
       }
       return buildGoogleButton(() => controller.loginGoogle());
     });

@@ -3,16 +3,17 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/permissions_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/tracking_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/user_controller.dart';
+import 'package:harpia/app/modules/monitora_uff/ui/widgets/calendar.dart';
 import 'package:harpia/app/modules/monitora_uff/ui/widgets/group_selector.dart';
+import 'package:harpia/app/modules/monitora_uff/ui/widgets/highlighted_users_list.dart';
 import 'package:harpia/app/modules/monitora_uff/ui/widgets/harpia_app_bar.dart';
+import 'package:harpia/app/modules/monitora_uff/ui/widgets/highlighted_user_panel.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:harpia/app/data/services/foreground_service.dart' as foreground_service;
 
@@ -82,114 +83,60 @@ class MonitoraUFFPage extends StatelessWidget {
           ),
           children: [
             _tile(),
-            _trajectoryPolylines(),
-            _trajectoryEndpointMarkers(),
+            _highlightedTrajectories(),
             _firebaseMarkers(),
             userCtrl.isTrackable() & !kIsWeb ? _toggleButton() : Container(),
             _centralizeButton(),
           ],
         ),
-        _highlightedUserBar(context),
+        Calendar(),
+        HighlightedObservedUsersList(),
+        HighlightedUserPanel()
       ],
     );
   }
 
-  /// Desenha a trajetória do usuário focado (aquele cuja barra inferior
-  /// está visível). A trajetória aparece e desaparece junto com a barra.
-  Widget _trajectoryPolylines() {
+  /// Desenha as trajetórias dos usuários destacados (highlightedObservedUsers).
+  Widget _highlightedTrajectories() {
     return Obx(() {
-      final user = trackingCtrl.selectedFirebaseUser.value;
-      final points = trackingCtrl.selectedTrajectory;
+      final trajectories = trackingCtrl.highlightedTrajectories;
 
-      if (user == null || points.length < 2) {
+      if (trajectories.isEmpty) {
         return PolylineLayer<Object>(polylines: []);
       }
 
-      final latLngPoints = points.map((p) => LatLng(p.lat, p.lng)).toList();
-      final baseColor = trackingCtrl.setMarkerColor(user);
+      final polylines = <Polyline<Object>>[];
+      for (final entry in trajectories.entries) {
+        final points = entry.value;
+        if (points.length < 2) continue;
 
-      final darkerBorderColor = Color.fromARGB(
-        (baseColor.a * 255.0).round().clamp(0, 255),
-        (baseColor.r * 255.0 * 0.5).round().clamp(0, 255),
-        (baseColor.g * 255.0 * 0.5).round().clamp(0, 255),
-        (baseColor.b * 255.0 * 0.5).round().clamp(0, 255),
-      );
+        final latLngPoints = points.map((p) => LatLng(p.lat, p.lng)).toList();
 
-      return PolylineLayer<Object>(
-        polylines: [
+        // Cor baseada no email para consistência
+        final hash = entry.key.hashCode;
+        final hue = (hash % 360).toDouble();
+        final baseColor = HSLColor.fromAHSL(1.0, hue, 0.7, 0.5).toColor();
+
+        final darkerBorderColor = Color.fromARGB(
+          (baseColor.a * 255.0).round().clamp(0, 255),
+          (baseColor.r * 255.0 * 0.5).round().clamp(0, 255),
+          (baseColor.g * 255.0 * 0.5).round().clamp(0, 255),
+          (baseColor.b * 255.0 * 0.5).round().clamp(0, 255),
+        );
+
+        polylines.add(
           Polyline<Object>(
             points: latLngPoints,
-            strokeWidth: 5.0,
+            strokeWidth: 4.0,
             color: baseColor,
-            borderStrokeWidth: 2.0,
+            borderStrokeWidth: 1.5,
             borderColor: darkerBorderColor,
           ),
-        ],
-      );
-    });
-  }
-
-  Widget _trajectoryEndpointMarkers() {
-    return Obx(() {
-      final user = trackingCtrl.selectedFirebaseUser.value;
-      final points = trackingCtrl.selectedTrajectory;
-
-      if (user == null || points.isEmpty) {
-        return MarkerLayer(markers: []);
+        );
       }
 
-      final latLngPoints = points.map((p) => LatLng(p.lat, p.lng)).toList();
-      final samePoint = latLngPoints.first == latLngPoints.last;
-
-      return MarkerLayer(
-        markers: [
-          _trajectoryEndpointMarker(
-            point: latLngPoints.first,
-            icon: Icons.trip_origin,
-            backgroundColor: Colors.indigo,
-            offset: samePoint ? const Offset(-6, -6) : Offset.zero,
-          ),
-          _trajectoryEndpointMarker(
-            point: latLngPoints.last,
-            icon: Icons.flag,
-            backgroundColor: Colors.indigo,
-            offset: samePoint ? const Offset(6, 6) : Offset.zero,
-          ),
-        ],
-      );
+      return PolylineLayer<Object>(polylines: polylines);
     });
-  }
-
-  Marker _trajectoryEndpointMarker({
-    required LatLng point,
-    required IconData icon,
-    required Color backgroundColor,
-    required Offset offset,
-  }) {
-    return Marker(
-      point: point,
-      width: 22,
-      height: 22,
-      alignment: Alignment.center,
-      child: Transform.translate(
-        offset: offset,
-        child: Container(
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(icon, color: Colors.white, size: 18),
-        ),
-      ),
-    );
   }
 
   /// Usuário verá essa tela apenas se algumas das permissões necessárias
@@ -296,10 +243,21 @@ class MonitoraUFFPage extends StatelessWidget {
       () => MarkerLayer(
         markers: trackingCtrl.firebaseUsers
         .where((user) {
-          // Filtro: apenas usuários que estão na intersecção entre `observedMembers` e `firebaseUsers`
-          // serão mostrados na camada de marcadores.
+          final isObservingToday = trackingCtrl.isObservingToday;
           final observedMembersEmails = googleGroupsController.observedMembers.map((member) => member.email);
-          return observedMembersEmails.contains(user.email);
+          final isObservedMember = observedMembersEmails.contains(user.email);
+
+          if (!isObservingToday) {
+            // Em dia passado, mantém o comportamento atual: exibe apenas quem
+            // tem posição histórica carregada em `animatedMarkerPositions`.
+            final hasHistoricalPosition = trackingCtrl.animatedMarkerPositions.containsKey(user.email);
+            return isObservedMember && hasHistoricalPosition;
+          }
+
+          // Hoje: exibe apenas usuários observados que possuem pelo menos um
+          // ponto registrado no dia atual (conforme `usersWithPointsOnObservedDay`).
+          final hasPointsToday = trackingCtrl.usersWithPointsOnObservedDay.contains(user.email);
+          return isObservedMember && hasPointsToday;
         })
         .map((user) {
           final isCurrentUser = user.email == trackingCtrl.userCtrl.user?.email;
@@ -361,108 +319,6 @@ class MonitoraUFFPage extends StatelessWidget {
         }).toList(),
       ),
     );
-  }
-
-  Widget _highlightedUserBar(BuildContext context) {
-    return Obx(() {
-      final user = trackingCtrl.selectedFirebaseUser.value;
-
-      if (user == null) {
-        return const SizedBox.shrink();
-      }
-
-      return Positioned(
-        left: 0,
-        right: 0,
-        bottom: 0,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Material(
-              color: AppColors.darkBlue(),
-              elevation: 12,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 12, 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: trackingCtrl.closeFirebaseUserDetails,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            user.nome ?? user.email,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(
-                              Icons.calendar_month,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              trackingCtrl.pickTrajectoryDate(context);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: SvgPicture.asset(
-                              'assets/monitora_uff/Google_Meet_icon.svg',
-                              width: 24,
-                              height: 24,
-                              fit: BoxFit.contain,
-                            ),
-                            onPressed: () {
-                              trackingCtrl.launchGoogleMeet(user.email);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Última atualização: ${DateFormat('dd/MM/yyyy HH:mm').format(user.timestamp!)}",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    });
   }
 
   Widget _toggleButton() {

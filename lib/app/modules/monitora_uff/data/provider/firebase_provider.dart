@@ -186,6 +186,47 @@ class FirebaseProvider {
     });
   }
 
+  /// Retorna o último ponto conhecido de um usuário em um dia específico.
+  ///
+  /// Útil para posicionar marcadores quando se observa um dia passado.
+  /// Retorna `null` quando não há registros para o dia informado.
+  Future<LocationPoint?> getLastKnownPositionForDate(
+    String email, {
+    required DateTime day,
+  }) async {
+    final startOfDay = DateTime(day.year, day.month, day.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final snapshot = await collectionRef
+        .doc(email)
+        .collection('historico_posicoes')
+        .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+        .where('timestamp', isLessThan: endOfDay)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+
+    return LocationPoint.fromMap(snapshot.docs.first.data());
+  }
+
+  /// Verifica se um usuário tem pelo menos um ponto registrado no dia informado.
+  Future<bool> hasPointsOnDate(String email, DateTime day) async {
+    final startOfDay = DateTime(day.year, day.month, day.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final snapshot = await collectionRef
+        .doc(email)
+        .collection('historico_posicoes')
+        .where('timestamp', isGreaterThanOrEqualTo: startOfDay)
+        .where('timestamp', isLessThan: endOfDay)
+        .limit(1)
+        .get();
+
+    return snapshot.docs.isNotEmpty;
+  }
+
   /// Retorna um Stream com os últimos [limit] pontos da trajetória de um
   /// usuário para um dia específico.
   Stream<List<LocationPoint>> getTrajectoryForDate(

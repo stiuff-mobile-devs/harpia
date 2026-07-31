@@ -19,6 +19,9 @@ class AuthGoogleController extends GetxController {
   // indica se o GoogleSignIn já terminou de inicializar
   final RxBool googleReady = false.obs;
 
+  // indica se uma operação de login está em andamento
+  final RxBool isLoading = false.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -33,17 +36,29 @@ class AuthGoogleController extends GetxController {
 
   Future<void> _handleLoginResult(dynamic user) async {
     if (user != null) {
-      String? token = await _authGoogle.getFirebaseIdToken();
-      await _userRepository.saveUserGoogleModel(user);
-      //await Get.find<UserController>().loadCurrentUser();
-      await _getGdiGroupsGoogle(token ?? '', user.email);
-      //await _getGoogleGroupMembers(token ?? '', 'grupos.harpia@id.uff.br'); // TODO: estou passando o email do grupo diretamente aqui. Trocar.
-      Get.offNamed(Routes.MONITORA_UFF);
+      try {
+        String? token = await _authGoogle.getFirebaseIdToken();
+        await _userRepository.saveUserGoogleModel(user);
+        //await Get.find<UserController>().loadCurrentUser();
+        await _getGdiGroupsGoogle(token ?? '', user.email);
+        //await _getGoogleGroupMembers(token ?? '', 'grupos.harpia@id.uff.br'); // TODO: estou passando o email do grupo diretamente aqui. Trocar.
+        Get.offNamed(Routes.MONITORA_UFF);
+      } catch (e) {
+        Get.snackbar(
+          "Erro ao finalizar login",
+          "Ocorreu um erro ao carregar seus dados: $e",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.shade100,
+          duration: const Duration(seconds: 5),
+        );
+      }
     } else {
       Get.snackbar(
         "Erro de Login",
-        "Falha ao autenticar o usuário.",
+        "Falha ao autenticar o usuário. Verifique sua conta Google e tente novamente.",
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade100,
+        duration: const Duration(seconds: 5),
       );
     }
   }
@@ -59,6 +74,13 @@ class AuthGoogleController extends GetxController {
       await _userDataRepository.updateGdiGroupsGoogle(gdiGroups);
     } catch (e) {
       debugPrint("Erro ao obter grupos GDI Google: $e");
+      Get.snackbar(
+        "Aviso",
+        "Não foi possível carregar seus grupos. Algumas funcionalidades podem ficar limitadas.\nErro: $e",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange.shade100,
+        duration: const Duration(seconds: 5),
+      );
     }
   }
 
@@ -78,28 +100,44 @@ class AuthGoogleController extends GetxController {
   //}
   
   void loginGoogle() async {
+    isLoading.value = true;
     try {
       final user = await _authGoogle.signInGoogle();
-      if (user != null) _handleLoginResult(user);
+      if (user != null) {
+        await _handleLoginResult(user);
+      }
+      // Na web o login retorna null propositalmente (o resultado chega via stream),
+      // portanto não exibimos erro quando user é null.
     } catch (e) {
       Get.snackbar(
-        "Erro de Login externo",
-        e.toString(),
+        "Erro de Login",
+        "Ocorreu um erro inesperado: $e",
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade100,
+        duration: const Duration(seconds: 5),
       );
-      rethrow;
+    } finally {
+      isLoading.value = false;
     }
   }
 
   Future<void> tryLogin() async {
-    var hasLogged = await _authGoogle.trySignInGoogle();
-    if (hasLogged != null) {
-      //await Get.find<UserController>().loadCurrentUser();
-      String? token = await _authGoogle.getFirebaseIdToken();
-      await _getGdiGroupsGoogle(token ?? '', hasLogged.email);
-      Get.offNamed(Routes.MONITORA_UFF);
-    } else {
+    isLoading.value = true;
+    try {
+      var hasLogged = await _authGoogle.trySignInGoogle();
+      if (hasLogged != null) {
+        //await Get.find<UserController>().loadCurrentUser();
+        String? token = await _authGoogle.getFirebaseIdToken();
+        await _getGdiGroupsGoogle(token ?? '', hasLogged.email);
+        Get.offNamed(Routes.MONITORA_UFF);
+      } else {
+        Get.offNamed(Routes.LOGIN);
+      }
+    } catch (e) {
+      debugPrint("Erro ao tentar login automático: $e");
       Get.offNamed(Routes.LOGIN);
+    } finally {
+      isLoading.value = false;
     }
   }
 
