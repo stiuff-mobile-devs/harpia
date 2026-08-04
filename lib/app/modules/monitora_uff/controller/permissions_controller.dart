@@ -131,6 +131,25 @@ class PermissionsController extends GetxController with WidgetsBindingObserver {
         false;
   }
 
+  Future<void> notifyGpsDisabled() async {
+    await Get.dialog(
+      AlertDialog(
+        title: Text("O GPS está desativado"),
+        content: Text("Por favor, ative o GPS para continuar."),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.darkBlue()),
+            child: Text("ENTENDI"),
+            onPressed: () {
+              Get.back(); // Fecha o diálogo
+            },
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+  
   @override
   void onClose() {
     WidgetsBinding.instance.removeObserver(this);

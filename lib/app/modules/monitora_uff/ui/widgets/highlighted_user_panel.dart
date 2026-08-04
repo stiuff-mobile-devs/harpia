@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
+import 'package:harpia/app/modules/monitora_uff/controller/call_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/tracking_controller.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
@@ -11,6 +12,7 @@ class HighlightedUserPanel extends StatelessWidget {
 
   TrackingController get trackingCtrl => Get.find<TrackingController>();
   GoogleGroupsController get googleGroupsCtrl => Get.find<GoogleGroupsController>();
+  CallController get callCtrl => Get.find<CallController>();
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +102,7 @@ class HighlightedUserPanel extends StatelessWidget {
                               fit: BoxFit.contain,
                             ),
                             onPressed: () {
-                              trackingCtrl.launchGoogleMeet(user.email);
+                              callCtrl.launchGoogleMeet(user.email);
                             },
                           ),
                         ),

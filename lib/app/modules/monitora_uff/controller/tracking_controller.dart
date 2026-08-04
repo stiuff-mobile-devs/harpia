@@ -1,22 +1,16 @@
 import 'dart:async';
-import 'dart:io';
 
-//import 'package:android_intent_plus/android_intent.dart';
-import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart'
   show
-    AlertDialog,
     Colors,
-    Text,
-    TextButton,
     WidgetsBindingObserver;
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 //import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:harpia/app/utils/color_pallete.dart';
+import 'package:harpia/app/modules/monitora_uff/controller/permissions_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/user_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/calendar_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
@@ -26,7 +20,6 @@ import 'package:harpia/app/modules/monitora_uff/models/location_point.dart';
 import 'package:harpia/app/modules/monitora_uff/models/user_model.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:get/get.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:harpia/app/data/services/foreground_service.dart';
 
 
@@ -49,6 +42,7 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
   late final MapController mapController;
   final isTrackingEnabled = false.obs;
   final UserController userCtrl = Get.find<UserController>();
+  final PermissionsController permissionsCtrl = Get.find<PermissionsController>();
   final Rx<double?> heading = Rx<double?>(null);
   //StreamSubscription<CompassEvent>? _compassSubscription;
 
@@ -461,31 +455,11 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
     );
   }
 
-  // TODO: mover para permissions controller.
-  Future<void> notifyGpsDisabled() async {
-    await Get.dialog(
-      AlertDialog(
-        title: Text("O GPS está desativado"),
-        content: Text("Por favor, ative o GPS para continuar."),
-        actions: [
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: AppColors.darkBlue()),
-            child: Text("ENTENDI"),
-            onPressed: () {
-              Get.back(); // Fecha o diálogo
-            },
-          ),
-        ],
-      ),
-      barrierDismissible: false,
-    );
-  }
-
   Future<void> _startService() async {
     // Verifica se GPS está ativado.
     bool gpsEnabled = await Geolocator.isLocationServiceEnabled();
     if (!gpsEnabled) {
-      notifyGpsDisabled();
+      permissionsCtrl.notifyGpsDisabled();
       return; // Interrompe a execução para não iniciar o serviço sem GPS
     }
   
@@ -527,63 +501,5 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
     _markerAnimationTimer?.cancel();
     mapController.dispose();
     super.onClose();
-  }
-
-  Future<void> launchGoogleMeet(String email) async {
-    if (kIsWeb) {
-      try {
-        // Codifica o e-mail para garantir que caracteres especiais (como @) não quebrem a URL
-        final encodedEmail = Uri.encodeComponent(email);
-
-        // URL específica para o serviço de ligações com o e-mail do destinatário
-        final Uri meetCallingUri = Uri.parse('https://meet.google.com/calling/?user=$encodedEmail');
-
-        await Clipboard.setData(ClipboardData(text: email));
-
-        await launchUrl(
-          meetCallingUri,
-          mode: LaunchMode.externalApplication, // Abre em uma nova aba
-        );
-      } catch (e) {
-        if (kDebugMode) {
-          print('Não foi possível abrir o serviço de ligações do Meet na Web: $e');
-        }
-      }
-      return;
-    } else {
-      await Clipboard.setData(ClipboardData(text: email));
-      if (Platform.isAndroid) {
-        final intent = AndroidIntent(
-          //action: 'action_view',
-          action: 'android.intent.action.MAIN',
-          //data: url,
-          package: 'com.google.android.apps.tachyon', // Google Meet standalone
-        );
-
-        try {
-          await intent.launch();
-        } catch (e) {
-          if (kDebugMode) {
-            print('Não foi possível abrir o Google Meet standalone: $e');
-          }
-        }
-      } else if (Platform.isIOS) {
-        final Uri meetAppUri = Uri.parse('gmeet://');
-        final Uri meetWebUri = Uri.parse('https://meet.google.com/');
-        try {
-          // Tenta abrir o aplicativo nativo do Google Meet
-          if (await canLaunchUrl(meetAppUri)) {
-            await launchUrl(meetAppUri);
-          } else {
-            // Caso não esteja instalado, abre no Safari como fallback
-            await launchUrl(meetWebUri, mode: LaunchMode.externalApplication);
-          }
-        } catch (e) {
-          if (kDebugMode) {
-            print('Não foi possível abrir o Google Meet no iOS: $e');
-          }
-        }
-      }
-    }
   }
 }
