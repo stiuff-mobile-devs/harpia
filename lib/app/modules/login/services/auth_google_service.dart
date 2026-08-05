@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:firebase_core/firebase_core.dart';
@@ -7,6 +8,7 @@ import 'package:harpia/app/config/secrets.dart';
 import 'package:harpia/app/data/models/user_google_model.dart';
 import 'package:harpia/app/data/repository/user_google_repository.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
 
 class AuthGoogleService {
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
@@ -91,14 +93,35 @@ class AuthGoogleService {
   Future<UserGoogleModel?> _createUserDoc(
     fb.UserCredential userCredential,
   ) async {
+    final photoUrl = userCredential.user?.photoURL;
+    final avatarBase64 = await _downloadAvatarBase64(photoUrl);
     final userDoc = await _userRepository.createUserDoc(
       userCredential.user!.email ?? '',
       userCredential.user!.displayName ?? '',
       userCredential.user!.uid,
-      userCredential.user!.photoURL ?? '',
+      photoUrl ?? '',
+      avatarBase64: avatarBase64,
     );
 
     return userDoc;
+  }
+
+  Future<String?> _downloadAvatarBase64(String? photoUrl) async {
+    if (photoUrl == null || photoUrl.isEmpty) {
+      return null;
+    }
+
+    try {
+      final response = await http.get(Uri.parse(photoUrl));
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      return base64Encode(response.bodyBytes);
+    } catch (e) {
+      debugPrint('AuthGoogleService: avatar download failed: $e');
+      return null;
+    }
   }
 
   Future<UserGoogleModel?> trySignInGoogle() async {

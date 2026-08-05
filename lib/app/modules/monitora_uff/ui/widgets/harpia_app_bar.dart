@@ -1,14 +1,37 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harpia/app/modules/login/controllers/auth_google_controller.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
+import 'package:harpia/app/modules/monitora_uff/controller/user_controller.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
 
 class HarpiaAppBar extends StatelessWidget implements PreferredSizeWidget {
   const HarpiaAppBar({super.key});
 
   GoogleGroupsController get googleGroupsController => Get.find<GoogleGroupsController>();
+  UserController get userController => Get.find<UserController>();
+
+  Widget _buildProfileAvatar() {
+    final avatarBase64 = userController.googleUser?.avatarBase64;
+
+    if (avatarBase64 == null || avatarBase64.isEmpty) {
+      return const CircleAvatar(
+        backgroundColor: Colors.white24,
+        child: Icon(Icons.person, color: Colors.white),
+      );
+    }
+
+    return ClipOval(
+      child: Image.memory(
+        base64Decode(avatarBase64),
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,13 +50,7 @@ class HarpiaAppBar extends StatelessWidget implements PreferredSizeWidget {
         PopupMenuButton(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Builder(builder: (context) {
-              final user = FirebaseAuth.instance.currentUser;
-              return CircleAvatar(
-                backgroundImage:
-                    user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-              );
-            }),
+            child: Obx(() => _buildProfileAvatar()),
           ),
           onSelected: (value) {
             if (value == 'sair') {

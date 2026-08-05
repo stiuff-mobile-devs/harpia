@@ -19,6 +19,7 @@ class UserGoogleProvider {
     String name,
     String uid,
     String urlImage,
+    {String? avatarBase64}
   ) async {
     final docRef = _firestore.collection('users').doc(uid);
     final docSnapshot = await docRef.get();
@@ -34,6 +35,7 @@ class UserGoogleProvider {
         createdAt: data['createdAt'] != null
             ? DateTime.tryParse(data['createdAt'] as String)
             : null,
+        avatarBase64: data['avatarBase64'] as String? ?? avatarBase64,
       );
     } else {
       user = UserGoogleModel(
@@ -42,6 +44,7 @@ class UserGoogleProvider {
         id: uid,
         urlImage: urlImage,
         createdAt: DateTime.now(),
+        avatarBase64: avatarBase64,
       );
       await createUserDocInFirebase(user);
     }

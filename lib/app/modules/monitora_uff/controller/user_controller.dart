@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:harpia/app/data/models/user_google_model.dart';
 import 'package:harpia/app/data/repository/user_google_repository.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/data/provider/firebase_provider.dart';
@@ -9,6 +10,9 @@ import 'package:get/get.dart';
 class UserController extends GetxController {
   final _user = Rxn<UserModel>();
   UserModel? get user => _user.value;
+
+  final _googleUser = Rxn<UserGoogleModel>();
+  UserGoogleModel? get googleUser => _googleUser.value;
 
   String? _googleName;
 
@@ -27,6 +31,7 @@ class UserController extends GetxController {
     try {
       final googleUser = await UserGoogleRepository().getUserGoogleModel();
       debugPrint('Hive user: ${googleUser?.email} / ${googleUser?.name}');
+      _googleUser.value = googleUser;
       _googleName = googleUser?.name;
       final email = googleUser?.email ?? "";
 
@@ -54,6 +59,7 @@ class UserController extends GetxController {
 
   Future<UserModel?> _initializeUser() async {
     final googleUser = await UserGoogleRepository().getUserGoogleModel();
+    _googleUser.value = googleUser;
     final email = googleUser?.email ?? "";
     debugPrint('Email usado no lookup: $email');
     if (email.isEmpty) return null;

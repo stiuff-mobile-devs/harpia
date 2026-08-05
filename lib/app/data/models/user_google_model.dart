@@ -18,12 +18,16 @@ class UserGoogleModel extends HiveObject {
   @HiveField(4)
   DateTime? createdAt;
 
+  @HiveField(5)
+  String? avatarBase64;
+
   UserGoogleModel({
     this.id,
     this.name,
     required this.email,
     this.urlImage,
     this.createdAt,
+    this.avatarBase64,
   });
 
   factory UserGoogleModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +39,7 @@ class UserGoogleModel extends HiveObject {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
+      avatarBase64: json['avatarBase64'] as String?,
     );
   }
 
@@ -45,6 +50,7 @@ class UserGoogleModel extends HiveObject {
       'email': email,
       'urlImage': urlImage,
       'createdAt': createdAt?.toIso8601String(),
+      'avatarBase64': avatarBase64,
     };
   }
 }
