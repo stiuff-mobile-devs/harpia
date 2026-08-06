@@ -8,6 +8,7 @@ import 'package:harpia/app/modules/monitora_uff/data/provider/firebase_provider.
 import 'package:harpia/firebase_options.dart';
 
 Timer? _heartbeatTimer;
+StreamSubscription<Position>? _positionSubscription;
 int interval = 5;
 int distance = 10;
 int heartbeatInterval = 5;
@@ -21,12 +22,15 @@ void onStart(ServiceInstance service) async {
 
   service.on('stopService').listen((event) {
     _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _positionSubscription?.cancel();
+    _positionSubscription = null;
     service.stopSelf();
   });
 
-  service.on('setUserInfo').listen((event) {
+  service.on('setUserInfo').listen((event) async {
     if (event != null) {
-      updateLocation(service, event['email'], event['name']);
+      await updateLocation(service, event['email'], event['name']);
     }
   });
 
@@ -41,7 +45,7 @@ Future<bool> onIosBackground(ServiceInstance service) async {
 }
 
 // TODO: passar UserModel para essa função em vez de email, nome.
-void updateLocation(ServiceInstance service, String email, String name) {
+Future<void> updateLocation(ServiceInstance service, String email, String name) async {
   // Configuração do GPS
   late LocationSettings locationSettings;
 
@@ -73,9 +77,10 @@ void updateLocation(ServiceInstance service, String email, String name) {
     }
   });
 
-  Geolocator.getPositionStream(locationSettings: locationSettings).listen((
-    Position position,
-  ) async {
+  await _positionSubscription?.cancel();
+  _positionSubscription = Geolocator.getPositionStream(
+    locationSettings: locationSettings,
+  ).listen((Position position) async {
     // print("\n\n${position.accuracy}\n\n");
     // TODO: Filtro de precisão: Se o erro for maior que 20 metros, ignorar
     // e.g.: if (position.accuracy > 20) return;

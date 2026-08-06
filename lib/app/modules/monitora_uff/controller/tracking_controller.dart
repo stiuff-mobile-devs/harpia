@@ -78,6 +78,9 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
   final Map<String, StreamSubscription<List<LocationPoint>>>
       _highlightedTrajectorySubscriptions = {};
 
+  StreamSubscription? _readySubscription;
+  StreamSubscription? _locationSubscription;
+
   /// Timer para debounce do listener de highlightedObservedUsers.
   Timer? _highlightedUsersDebounce;
 
@@ -464,11 +467,13 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
     }
   
     await _setPlatformSpecifics();
+    await _readySubscription?.cancel();
+    await _locationSubscription?.cancel();
     await _service.startService();
   
     // Este listener ouve o serviço em foreground avisar que está pronto para
     // receber informações do usuário.
-    _service.on('ready').listen((event) async {
+    _readySubscription = _service.on('ready').listen((event) async {
       _service.invoke("setUserInfo", {
         "email": userCtrl.user!.email,
         "name": userCtrl.getUserName(),
@@ -477,7 +482,7 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
   
     // Este listener ouve atualizações da posição por parte do serviço em
     // foreground.
-    _service.on('updateLocationLocally').listen((event) {
+    _locationSubscription = _service.on('updateLocationLocally').listen((event) {
       if (event != null) {
         position = Position.fromMap(event['position']);
       }
@@ -490,6 +495,10 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
   }
   
   Future<void> _stopService() async {
+    await _readySubscription?.cancel();
+    _readySubscription = null;
+    await _locationSubscription?.cancel();
+    _locationSubscription = null;
     _service.invoke("stopService");
     isTrackingEnabled.value = false;
     FirebaseProvider().updateIsTracked(userCtrl.user!.email, false);
@@ -498,6 +507,8 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
   @override
   void onClose() {
     //_compassSubscription?.cancel();
+    _readySubscription?.cancel();
+    _locationSubscription?.cancel();
     _markerAnimationTimer?.cancel();
     mapController.dispose();
     super.onClose();
