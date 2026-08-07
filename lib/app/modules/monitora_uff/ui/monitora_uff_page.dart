@@ -73,9 +73,18 @@ class MonitoraUFFPage extends StatelessWidget {
         FlutterMap(
           mapController: trackingCtrl.mapController,
           options: MapOptions(
+            initialZoom: 15.0,
             initialCenter: LatLng(
               trackingCtrl.position.latitude,
               trackingCtrl.position.longitude,
+            ),
+            minZoom: 3.0,
+            maxZoom: 19.0,
+            cameraConstraint: CameraConstraint.contain(
+              bounds: LatLngBounds(
+                LatLng(-90, -180),
+                LatLng(90, 180),
+              ),
             ),
             onTap: (tapPosition, latLng) {
               trackingCtrl.closeFirebaseUserDetails();
