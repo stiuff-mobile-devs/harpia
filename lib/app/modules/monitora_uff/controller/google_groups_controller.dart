@@ -1,12 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:harpia/app/data/connections/google_service.dart';
+import 'package:harpia/app/data/repository/google_groups_repository.dart';
 import 'package:harpia/app/modules/monitora_uff/models/google_group_model.dart';
 import 'package:harpia/app/modules/monitora_uff/models/google_group_member_model.dart';
 
 class GoogleGroupsController extends GetxController {
-  final GoogleService _googleService = GoogleService();
+  final GoogleGroupsRepository _repository = GoogleGroupsRepository();
   final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
 
   final RxString _loadError = RxString('');
@@ -38,7 +38,7 @@ class GoogleGroupsController extends GetxController {
     _loadGroups();
   }
 
-  Future<void> _loadGroups() async {
+  Future<void> _loadGroups({bool forceRefresh = false}) async {
     loadError.value = '';
     try {
       final user = _auth.currentUser;
@@ -66,7 +66,7 @@ class GoogleGroupsController extends GetxController {
       }
 
       // 1. Buscar todas as entidades do grupo raiz 'grupos.harpia@id.uff.br'
-      final entities = await _googleService.getGroupEntities(token, rootGroupEmail);
+      final entities = await _repository.getGroupEntities(token, rootGroupEmail, forceRefresh: forceRefresh);
 
       // 2. Filtrar entidades para manter apenas subgrupos, i.e.,
       // ficar apenas com as entidades cujo 'type' == 'GROUP'
@@ -84,7 +84,7 @@ class GoogleGroupsController extends GetxController {
         final groupEmail = subgroup['email'] ?? 'Email indisponível';
         final groupName = subgroup['name'] ?? 'Nome indisponível';
         final groupDescription = subgroup['description'] ?? 'Descrição indisponível';
-        final groupMembers = await _googleService.getGroupEntities(token, groupEmail);
+        final groupMembers = await _repository.getGroupEntities(token, groupEmail, forceRefresh: forceRefresh);
         final isMember = groupMembers.any(
           (m) => m['email']?.toString().trim().toLowerCase() == userEmail.trim().toLowerCase()
         );
@@ -133,7 +133,7 @@ class GoogleGroupsController extends GetxController {
 
   /// Atualiza os membros observados com base no grupo selecionado.
   /// Busca os participantes do grupo via API e filtra apenas usuários (type == USER).
-  Future<void> updateObservedUsers(GoogleGroupModel selectedGroup) async {
+  Future<void> updateObservedUsers(GoogleGroupModel selectedGroup, {bool forceRefresh = false}) async {
     observedGroup.value = selectedGroup.name;
 
     try {
@@ -144,7 +144,7 @@ class GoogleGroupsController extends GetxController {
       if (token == null) return;
 
       // Busca usuários do grupo selecionado
-      final entities = await _googleService.getGroupEntities(token, selectedGroup.email);
+      final entities = await _repository.getGroupEntities(token, selectedGroup.email, forceRefresh: forceRefresh);
 
       final users = entities
         .where((e) => e['type'] == 'USER')
@@ -163,6 +163,24 @@ class GoogleGroupsController extends GetxController {
     } catch (e) {
       debugPrint("Erro ao buscar membros do grupo ${selectedGroup.email}: $e");
       observedMembers.clear();
+    }
+  }
+
+  Future<void> refreshGroups() async {
+    isLoading.value = true;
+    _observableGoogleGroups.clear();
+    await _loadGroups(forceRefresh: true);
+    
+    final currentGroupName = observedGroup.value;
+    if (currentGroupName != 'Nenhum') {
+      try {
+        final selectedGroup = _observableGoogleGroups.firstWhere((g) => g.name == currentGroupName);
+        await updateObservedUsers(selectedGroup, forceRefresh: true);
+      } catch (e) {
+        // Group not found anymore
+        observedGroup.value = 'Nenhum';
+        observedMembers.clear();
+      }
     }
   }
 }

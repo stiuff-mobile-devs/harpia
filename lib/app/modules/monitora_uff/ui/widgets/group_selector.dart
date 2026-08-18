@@ -48,9 +48,18 @@ class GroupSelector extends StatelessWidget {
         children: [
           DrawerHeader(
             decoration: BoxDecoration(color: AppColors.darkBlue()),
-            child: Column(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Grupos', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 24)),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  onPressed: () {
+                    googleGroupsController.refreshGroups();
+                  },
+                  tooltip: 'Atualizar grupos',
+                ),
               ],
             ),
           ),

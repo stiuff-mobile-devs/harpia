@@ -6,7 +6,6 @@ import 'package:harpia/app/data/provider/user_google_provider.dart';
 class UserGoogleRepository {
   final UserGoogleProvider _provider = UserGoogleProvider();
   final GoogleService _googleService = GoogleService();
-  //final CdcService _cdcService = CdcService();
 
   Future<UserGoogleModel> createUserDoc(
     String email,

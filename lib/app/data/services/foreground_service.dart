@@ -34,7 +34,6 @@ void onStart(ServiceInstance service) async {
     }
   });
 
-  // TODO: usar shared preferences?
   service.invoke('ready');
 }
 

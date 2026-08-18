@@ -7,13 +7,14 @@ import 'package:harpia/app/data/models/gdi_groups_model.dart';
 import 'package:http/http.dart' as http;
 
 class GoogleService {
-  Future<GdiGroupsGoogle> getGdiGroupsGoogle(String token, String email) async {
+  /// Busca os grupos GDI de um usuário Google.
+  Future<GdiGroupsGoogle> getGdiGroupsGoogle(String token, String userEmail) async {
     try {
       DateTime now = DateTime.now();
       Uri url = Uri.https(
         Secrets.gdiGoogleHost, 
         Secrets.gdiUserGoogleGroupsPath, 
-        {'email': email}
+        {'email': userEmail}
       );
 
       final response = await http.get(
