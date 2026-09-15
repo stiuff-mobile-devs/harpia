@@ -49,3 +49,4 @@ lib/app/config/secrets.dart
 key.properties
 firepit-log.txt
 .firebase/
+node_modules/

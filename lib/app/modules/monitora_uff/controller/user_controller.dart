@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/material.dart';
 import 'package:harpia/app/data/models/user_google_model.dart';
 import 'package:harpia/app/data/repository/user_google_repository.dart';
@@ -26,6 +27,26 @@ class UserController extends GetxController {
     allFirebaseUsers.bindStream(FirebaseProvider().streamAllUsers());
   }
 
+  /// Verifica nos Custom Claims do token se o usuário é observável
+  /// (MEMBER ou MANAGER em pelo menos um grupo Harpia).
+  /// Retorna false se os claims não estiverem definidos.
+  Future<bool> _isObservavelFromClaims() async {
+    final user = fb.FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final idTokenResult = await user.getIdTokenResult();
+    final claims = idTokenResult.claims;
+    if (claims == null) return false;
+
+    final harpiaRoles = claims['harpia_roles'];
+    if (harpiaRoles == null || harpiaRoles is! Map) return false;
+
+    // Observável se pelo menos um role é MEMBER ou MANAGER
+    return harpiaRoles.values.any(
+      (role) => role == 'MEMBER' || role == 'MANAGER',
+    );
+  }
+
   Future<void> loadCurrentUser() async {
     isLoading.value = true;
     try {
@@ -45,12 +66,21 @@ class UserController extends GetxController {
       if (firestoreUser != null) {
         _user.value = firestoreUser;
       } else {
-        // Criar documento no Firestore
-        await FirebaseProvider().setUser(UserModel(
-          email: email,
-          nome: _googleName,
-        ));
-        _user.value = await _initializeUser();
+        // Criar documento no Firestore APENAS se o usuário for observável.
+        // A coleção `usuarios` existe exclusivamente para armazenar
+        // coordenadas de observáveis (MEMBER/MANAGER).
+        final isObservavel = await _isObservavelFromClaims();
+        if (isObservavel) {
+          await FirebaseProvider().setUser(UserModel(
+            email: email,
+            nome: _googleName,
+          ));
+          _user.value = await _initializeUser();
+        } else {
+          debugPrint(
+            'Usuário $email não é observável — doc em `usuarios` não criado.',
+          );
+        }
       }
     } finally {
       isLoading.value = false;

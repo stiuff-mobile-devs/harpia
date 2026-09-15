@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:harpia/app/data/repository/google_groups_repository.dart';
+import 'package:harpia/app/data/services/harpia_claims_service.dart';
 import 'package:harpia/app/modules/monitora_uff/models/google_group_model.dart';
 import 'package:harpia/app/modules/monitora_uff/models/google_group_member_model.dart';
 
@@ -169,6 +170,11 @@ class GoogleGroupsController extends GetxController {
   Future<void> refreshGroups() async {
     isLoading.value = true;
     _observableGoogleGroups.clear();
+
+    // Re-sincronizar claims (o usuário pode ter sido
+    // adicionado/removido de um grupo desde o último login).
+    await _syncHarpiaClaims();
+
     await _loadGroups(forceRefresh: true);
     
     final currentGroupName = observedGroup.value;
@@ -182,5 +188,11 @@ class GoogleGroupsController extends GetxController {
         observedMembers.clear();
       }
     }
+  }
+
+  /// Chama a Cloud Function `syncHarpiaClaims` para re-sincronizar
+  /// os Custom Claims do usuário com seus papéis atuais nos grupos.
+  Future<void> _syncHarpiaClaims() async {
+    await HarpiaClaimsService.syncClaims();
   }
 }

@@ -119,7 +119,8 @@ class FirebaseProvider {
       await collectionRef.doc(email).update({'isTracked': isTracked});
       debugPrint("Campo isTracked atualizado com sucesso!");
     } catch (e) {
-      throw Exception("Erro ao atualizar isTracked: $e");
+      debugPrint("Erro ao atualizar isTracked: $e");
+      rethrow;
     }
   }
 
@@ -157,7 +158,8 @@ class FirebaseProvider {
 
       if (kDebugMode) print("Dados atualizados no firestore com sucesso!");
     } catch (e) {
-      throw Exception("Erro ao atualizar coordenadas e timestamp: $e");
+      debugPrint("Erro ao atualizar coordenadas e timestamp: $e");
+      rethrow;
     }
   }
 
