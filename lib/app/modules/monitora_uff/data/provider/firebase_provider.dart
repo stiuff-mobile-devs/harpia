@@ -62,6 +62,28 @@ class FirebaseProvider {
     });
   }
 
+  Stream<List<UserModel>> streamUsersByGroup(String groupEmail) {
+    try {
+      return collectionRef
+          .where('grupo_ativo', isEqualTo: groupEmail)
+          .where('isTracked', isEqualTo: true)
+          .snapshots()
+          .map((QuerySnapshot query) {
+        List<UserModel> users = [];
+        final limit = DateTime.now().subtract(const Duration(minutes: 5));
+        for (var doc in query.docs) {
+          final user = UserModel.fromMap(doc.data() as Map<String, dynamic>);
+          if (user.timestamp != null && user.timestamp!.isAfter(limit)) {
+            users.add(user);
+          }
+        }
+        return users;
+      });
+    } catch (e) {
+      throw Exception("Erro ao buscar usuários do grupo: $e");
+    }
+  }
+
   Stream<List<UserModel>> getAllTrackedUsers() {
     try {
       return collectionRef.where('isTracked', isEqualTo: true).snapshots().map((
@@ -114,9 +136,17 @@ class FirebaseProvider {
     }
   }
 
-  Future<void> updateIsTracked(String email, bool isTracked) async {
+  Future<void> updateIsTracked(
+    String email,
+    bool isTracked, {
+    String? grupoAtivo,
+  }) async {
     try {
-      await collectionRef.doc(email).update({'isTracked': isTracked});
+      final Map<String, dynamic> data = {'isTracked': isTracked};
+      if (grupoAtivo != null) {
+        data['grupo_ativo'] = grupoAtivo;
+      }
+      await collectionRef.doc(email).update(data);
       debugPrint("Campo isTracked atualizado com sucesso!");
     } catch (e) {
       debugPrint("Erro ao atualizar isTracked: $e");
@@ -139,22 +169,33 @@ class FirebaseProvider {
     required double lat,
     required double lng,
     required DateTime timestamp,
+    String? grupoAtivo,
   }) async {
     try {
-      await collectionRef.doc(email).update({
+      final Map<String, dynamic> userUpdates = {
         'email': email,
         'nome': nome,
         'lat': lat,
         'lng': lng,
         'timestamp': timestamp,
-      });
+      };
+      if (grupoAtivo != null) {
+        userUpdates['grupo_ativo'] = grupoAtivo;
+      }
+
+      await collectionRef.doc(email).update(userUpdates);
 
       // Salva o ponto na subcoleção permanente de histórico de posições.
-      await collectionRef.doc(email).collection('historico_posicoes').add({
+      final Map<String, dynamic> pointData = {
         'lat': lat,
         'lng': lng,
         'timestamp': timestamp,
-      });
+      };
+      if (grupoAtivo != null) {
+        pointData['grupo_ativo'] = grupoAtivo;
+      }
+
+      await collectionRef.doc(email).collection('historico_posicoes').add(pointData);
 
       if (kDebugMode) print("Dados atualizados no firestore com sucesso!");
     } catch (e) {

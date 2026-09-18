@@ -7,6 +7,7 @@ class UserModel {
   double? lng;
   DateTime? timestamp;
   bool? isTracked;
+  String? grupoAtivo;
 
   UserModel({
     required this.email,
@@ -15,6 +16,7 @@ class UserModel {
     this.lng,
     this.timestamp,
     this.isTracked,
+    this.grupoAtivo,
   });
 
   UserModel.fromMap(Map<String, dynamic> json)
@@ -23,19 +25,8 @@ class UserModel {
       lat = (json['lat'] as num?)?.toDouble(),
       lng = (json['lng'] as num?)?.toDouble(),
       timestamp = (json['timestamp'] as Timestamp?)?.toDate(),
-      isTracked = json['isTracked'] as bool?;
-
-  //Map<String, dynamic> toMap() {
-  //  final Map<String, dynamic> data = <String, dynamic>{};
-  //  data['email'] = email;
-  //  data['nome'] = nome;
-  //  data['funcao'] = funcao;
-  //  data['lat'] = lat;
-  //  data['lng'] = lng;
-  //  data['timestamp'] = timestamp;
-  //  data['isTracked'] = isTracked;
-  //  return data;
-  //}
+      isTracked = json['isTracked'] as bool?,
+      grupoAtivo = json['grupo_ativo']?.toString();
 
   Map<String, dynamic> toMap() {
     return {
@@ -45,6 +36,7 @@ class UserModel {
       if (lng != null) 'lng': lng,
       if (timestamp != null) 'timestamp': timestamp,
       if (isTracked != null) 'isTracked': isTracked,
+      if (grupoAtivo != null) 'grupo_ativo': grupoAtivo,
     };
   }
 }

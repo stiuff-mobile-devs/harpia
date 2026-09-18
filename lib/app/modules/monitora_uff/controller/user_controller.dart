@@ -16,15 +16,12 @@ class UserController extends GetxController {
   UserGoogleModel? get googleUser => _googleUser.value;
 
   String? _googleName;
-
-  final allFirebaseUsers = <UserModel>[].obs;
   final isLoading = true.obs;
 
   @override
   Future<void> onInit() async {
     super.onInit();
     await loadCurrentUser();
-    allFirebaseUsers.bindStream(FirebaseProvider().streamAllUsers());
   }
 
   /// Verifica nos Custom Claims do token se o usuário é observável

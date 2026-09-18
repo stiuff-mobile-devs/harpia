@@ -55,7 +55,12 @@ void onStart(ServiceInstance service) async {
 
   service.on('setUserInfo').listen((event) async {
     if (event != null) {
-      await updateLocation(service, event['email'], event['name']);
+      await updateLocation(
+        service,
+        event['email'],
+        event['name'],
+        event['grupoAtivo'] as String?,
+      );
     }
   });
 
@@ -74,7 +79,12 @@ int _consecutivePermissionErrors = 0;
 const int _maxConsecutivePermissionErrors = 3;
 
 // TODO: passar UserModel para essa função em vez de email, nome.
-Future<void> updateLocation(ServiceInstance service, String email, String name) async {
+Future<void> updateLocation(
+  ServiceInstance service,
+  String email,
+  String name, [
+  String? grupoAtivo,
+]) async {
   // Configuração do GPS
   late LocationSettings locationSettings;
 
@@ -136,6 +146,7 @@ Future<void> updateLocation(ServiceInstance service, String email, String name) 
           lat: position.latitude,
           lng: position.longitude,
           timestamp: DateTime.now(),
+          grupoAtivo: grupoAtivo,
         );
         // Reset do contador em caso de sucesso
         _consecutivePermissionErrors = 0;

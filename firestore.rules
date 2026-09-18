@@ -41,63 +41,69 @@ service cloud.firestore {
       return request.auth.token.email == docEmail;
     }
 
+    /// Verifica se o usuário autenticado tem papel em um grupo específico.
+    function hasRoleInGroup(groupEmail) {
+      return isAutorizado()
+        && groupEmail is string
+        && request.auth.token.harpia_roles[groupEmail] != null;
+    }
+
+    /// Verifica se o usuário autenticado é observável (MEMBER ou MANAGER) em um grupo específico.
+    function isObservavelInGroup(groupEmail) {
+      return isAuthenticated()
+        && groupEmail is string
+        && request.auth.token.harpia_roles is map
+        && request.auth.token.harpia_roles[groupEmail] in ["MEMBER", "MANAGER"];
+    }
+
     // ╔══════════════════════════════════════════════════════════════════════╗
     // ║  COLEÇÃO: usuarios/{email}                                          ║
     // ║                                                                     ║
     // ║  Localização em tempo real. DocId = email do usuário.                ║
-    // ║  Campos: email, nome, lat, lng, timestamp, isTracked                ║
+    // ║  Campos: email, nome, lat, lng, timestamp, isTracked, grupo_ativo    ║
     // ╚══════════════════════════════════════════════════════════════════════╝
 
     match /usuarios/{usuarioEmail} {
 
       // ── LEITURA ─────────────────────────────────────────────────────────
-      // Qualquer AUTORIZADO pode ler.
-      // A filtragem por grupo (quais marcadores exibir) é feita pelo
-      // cliente via Google Groups API — o Firestore não tem visibilidade
-      // sobre qual grupo o usuário está observando.
-      //
-      // Isto implementa: propriedades (a), (b) e (c) — todo usuário de
-      // um grupo é observador, e todo observador pode ler.
-      allow read: if isAutorizado();
+      // O próprio usuário pode ler seu documento OU
+      // qualquer usuário autenticado com permissão no grupo_ativo associado.
+      allow read: if isDocOwner(usuarioEmail) || (
+        isAuthenticated()
+        && resource.data.grupo_ativo != null
+        && hasRoleInGroup(resource.data.grupo_ativo)
+      );
 
       // ── CRIAÇÃO ─────────────────────────────────────────────────────────
       // Apenas OBSERVÁVEIS podem criar seu próprio documento.
       // A coleção `usuarios` existe exclusivamente para armazenar
-      // coordenadas de usuários observáveis. Proprietários e metausuários
-      // não precisam (e não devem) ter um documento aqui.
-      //
-      // Restrições:
-      //   - Deve ser observável (MEMBER/MANAGER em algum grupo)
-      //   - O docId (usuarioEmail) deve ser o email do token
-      //   - O campo `email` no documento deve coincidir com o email do token
-      //   - Apenas campos permitidos
+      // coordenadas de usuários observáveis.
       allow create: if isObservavel()
         && isDocOwner(usuarioEmail)
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.keys().hasOnly(
-             ['email', 'nome', 'lat', 'lng', 'timestamp', 'isTracked']
-           );
+             ['email', 'nome', 'lat', 'lng', 'timestamp', 'isTracked', 'grupo_ativo']
+           )
+        && (
+          !('grupo_ativo' in request.resource.data)
+          || request.resource.data.grupo_ativo == null
+          || isObservavelInGroup(request.resource.data.grupo_ativo)
+        );
 
       // ── ATUALIZAÇÃO ─────────────────────────────────────────────────────
       // Um OBSERVÁVEL pode atualizar APENAS seu próprio documento.
-      //
-      // Restrições:
-      //   - Só quem é observável (MEMBER/MANAGER em algum grupo) pode atualizar
-      //     (proprietários e metausuários NÃO — propriedade b)
-      //   - Apenas o próprio documento (docId == email do token)
-      //   - O campo `email` é imutável
-      //   - Apenas campos permitidos
-      //
-      // Isto implementa:
-      //   - Propriedade (a): participante/admin → observável → pode escrever
-      //   - Propriedade (b): proprietário → NÃO observável → NÃO pode escrever
-      //   - Metausuário ≡ proprietário (Obs3) → NÃO pode escrever
+      // Se grupo_ativo for fornecido, deve pertencer a um grupo onde é MEMBER ou MANAGER.
       allow update: if isObservavel()
         && isDocOwner(usuarioEmail)
         && request.resource.data.email == resource.data.email
         && request.resource.data.keys().hasOnly(
-             ['email', 'nome', 'lat', 'lng', 'timestamp', 'isTracked']
-           );
+             ['email', 'nome', 'lat', 'lng', 'timestamp', 'isTracked', 'grupo_ativo']
+           )
+        && (
+          !('grupo_ativo' in request.resource.data)
+          || request.resource.data.grupo_ativo == null
+          || isObservavelInGroup(request.resource.data.grupo_ativo)
+        );
 
       // ── EXCLUSÃO ────────────────────────────────────────────────────────
       // Exclusão de documentos em `usuarios` é proibida.
@@ -109,22 +115,23 @@ service cloud.firestore {
       //
       // Pontos GPS históricos (append-only). Escritos pelo foreground
       // service em updateLocationAndTimestamp().
-      // Campos: lat, lng, timestamp
+      // Campos: lat, lng, timestamp, grupo_ativo
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       match /historico_posicoes/{pontoId} {
 
-        // Qualquer autorizado pode ler histórico (mesmo de outros usuários,
-        // pois o app exibe trajetórias de membros observados).
-        allow read: if isAutorizado();
+        // Leitura permitida ao dono OU a quem possuir papel no grupo_ativo do usuário
+        allow read: if isDocOwner(usuarioEmail) || (
+          isAuthenticated()
+          && hasRoleInGroup(
+               get(/databases/$(database)/documents/usuarios/$(usuarioEmail)).data.grupo_ativo
+             )
+        );
 
         // Apenas o próprio observável pode criar pontos no SEU histórico.
-        // Impede falsificação de trajetória de outro usuário.
-        //
-        // Validação: campos obrigatórios e tipos corretos.
         allow create: if isObservavel()
           && isDocOwner(usuarioEmail)
-          && request.resource.data.keys().hasOnly(['lat', 'lng', 'timestamp'])
+          && request.resource.data.keys().hasOnly(['lat', 'lng', 'timestamp', 'grupo_ativo'])
           && request.resource.data.lat is number
           && request.resource.data.lng is number
           && request.resource.data.timestamp is timestamp;
