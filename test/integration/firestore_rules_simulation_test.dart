@@ -128,7 +128,11 @@ void main() {
       };
     });
 
-    test('LEITURA: O próprio usuário pode ler seu próprio documento sempre', () {
+    // -------------------------------------------------------------
+    // LEITURA DE DOCUMENTO DE USUÁRIO
+    // -------------------------------------------------------------
+    test('Happy Path: LEITURA - O próprio usuário pode ler seu próprio documento sempre', () {
+      // 1. Arrange
       final docGuardaA = {
         'email': emailGuardaA,
         'lat': -22.90,
@@ -136,16 +140,19 @@ void main() {
         'grupo_ativo': grupoSeguranca,
       };
 
+      // 2. Act
       final permitido = FirestoreRulesSimulator.evaluateReadUserDoc(
         authToken: tokenGuardaA,
         targetDocEmail: emailGuardaA,
         resourceData: docGuardaA,
       );
 
+      // 3. Assert
       expect(permitido, isTrue);
     });
 
-    test('LEITURA: Observador com role no mesmo grupo_ativo pode ler o documento', () {
+    test('Happy Path: LEITURA - Observador com papel no mesmo grupo_ativo pode ler o documento', () {
+      // 1. Arrange
       final docGuardaA = {
         'email': emailGuardaA,
         'lat': -22.90,
@@ -153,33 +160,19 @@ void main() {
         'grupo_ativo': grupoSeguranca,
       };
 
+      // 2. Act
       final permitido = FirestoreRulesSimulator.evaluateReadUserDoc(
         authToken: tokenObservadorSeguranca,
         targetDocEmail: emailGuardaA,
         resourceData: docGuardaA,
       );
 
+      // 3. Assert
       expect(permitido, isTrue);
     });
 
-    test('LEITURA: Usuário de OUTRO grupo é TERMINANTEMENTE BLOQUEADO (Sem vazamento)', () {
-      final docGuardaA = {
-        'email': emailGuardaA,
-        'lat': -22.90,
-        'lng': -43.13,
-        'grupo_ativo': grupoSeguranca, // Guarda A está em Segurança
-      };
-
-      final permitido = FirestoreRulesSimulator.evaluateReadUserDoc(
-        authToken: tokenInvasorSemGrupo, // Invasor está em grupo-outro
-        targetDocEmail: emailGuardaA,
-        resourceData: docGuardaA,
-      );
-
-      expect(permitido, isFalse, reason: 'Usuário de outro grupo NÃO pode ler coordenadas!');
-    });
-
-    test('LEITURA: Terceiro não pode ler documento sem grupo_ativo definido', () {
+    test('Edge Case: LEITURA - Terceiro não pode ler documento sem grupo_ativo definido', () {
+      // 1. Arrange
       final docSemGrupo = {
         'email': emailGuardaA,
         'lat': -22.90,
@@ -187,16 +180,60 @@ void main() {
         'grupo_ativo': null,
       };
 
+      // 2. Act
       final permitido = FirestoreRulesSimulator.evaluateReadUserDoc(
         authToken: tokenObservadorSeguranca,
         targetDocEmail: emailGuardaA,
         resourceData: docSemGrupo,
       );
 
+      // 3. Assert
       expect(permitido, isFalse);
     });
 
-    test('ESCRITA: Usuário pode atualizar suas próprias coordenadas no seu grupo legítimo', () {
+    test('Sad Path: LEITURA - Usuário de OUTRO grupo é TERMINANTEMENTE BLOQUEADO', () {
+      // 1. Arrange
+      final docGuardaA = {
+        'email': emailGuardaA,
+        'lat': -22.90,
+        'lng': -43.13,
+        'grupo_ativo': grupoSeguranca,
+      };
+
+      // 2. Act
+      final permitido = FirestoreRulesSimulator.evaluateReadUserDoc(
+        authToken: tokenInvasorSemGrupo,
+        targetDocEmail: emailGuardaA,
+        resourceData: docGuardaA,
+      );
+
+      // 3. Assert
+      expect(permitido, isFalse, reason: 'Usuário de outro grupo NÃO pode ler coordenadas!');
+    });
+
+    test('Sad Path: LEITURA - Requisição sem token de autenticação é bloqueada', () {
+      // 1. Arrange
+      final docGuardaA = {
+        'email': emailGuardaA,
+        'grupo_ativo': grupoSeguranca,
+      };
+
+      // 2. Act
+      final permitido = FirestoreRulesSimulator.evaluateReadUserDoc(
+        authToken: null,
+        targetDocEmail: emailGuardaA,
+        resourceData: docGuardaA,
+      );
+
+      // 3. Assert
+      expect(permitido, isFalse);
+    });
+
+    // -------------------------------------------------------------
+    // ESCRITA DE DOCUMENTO DE USUÁRIO
+    // -------------------------------------------------------------
+    test('Happy Path: ESCRITA - Usuário pode atualizar suas próprias coordenadas no seu grupo legítimo', () {
+      // 1. Arrange
       final updateValido = {
         'email': emailGuardaA,
         'lat': -22.9045,
@@ -206,94 +243,169 @@ void main() {
         'grupo_ativo': grupoSeguranca,
       };
 
+      // 2. Act
       final permitido = FirestoreRulesSimulator.evaluateWriteUserDoc(
         authToken: tokenGuardaA,
         targetDocEmail: emailGuardaA,
         incomingData: updateValido,
       );
 
+      // 3. Assert
       expect(permitido, isTrue);
     });
 
-    test('ESCRITA: Usuário é BLOQUEADO se tentar forjar grupo_ativo onde não é MEMBER ou MANAGER', () {
+    test('Edge Case: ESCRITA - Usuário com papel MANAGER no grupo pode atualizar documento', () {
+      // 1. Arrange
+      final updateManager = {
+        'email': emailObservador,
+        'lat': -22.9045,
+        'lng': -43.1330,
+        'grupo_ativo': grupoSeguranca,
+      };
+
+      // 2. Act
+      final permitido = FirestoreRulesSimulator.evaluateWriteUserDoc(
+        authToken: tokenObservadorSeguranca,
+        targetDocEmail: emailObservador,
+        incomingData: updateManager,
+      );
+
+      // 3. Assert
+      expect(permitido, isTrue);
+    });
+
+    test('Sad Path: ESCRITA - Usuário é BLOQUEADO se tentar forjar grupo onde não é MEMBER ou MANAGER', () {
+      // 1. Arrange
       final updateFraudulento = {
         'email': emailGuardaA,
         'lat': -22.9045,
         'lng': -43.1330,
-        'timestamp': DateTime.now(),
-        'isTracked': true,
-        'grupo_ativo': grupoTransporte, // Guarda A NÃO pertence a Transporte!
+        'grupo_ativo': grupoTransporte, // Guarda A pertence a Segurança, não Transporte
       };
 
+      // 2. Act
       final permitido = FirestoreRulesSimulator.evaluateWriteUserDoc(
         authToken: tokenGuardaA,
         targetDocEmail: emailGuardaA,
         incomingData: updateFraudulento,
       );
 
+      // 3. Assert
       expect(permitido, isFalse, reason: 'Firestore deve rejeitar grupos forjados!');
     });
 
-    test('ESCRITA: Usuário é BLOQUEADO ao tentar atualizar documento de outra pessoa', () {
+    test('Sad Path: ESCRITA - Usuário é BLOQUEADO ao tentar atualizar documento de outra pessoa', () {
+      // 1. Arrange
       final updateAlheio = {
         'email': emailGuardaB,
         'lat': -22.90,
         'lng': -43.13,
       };
 
+      // 2. Act
       final permitido = FirestoreRulesSimulator.evaluateWriteUserDoc(
-        authToken: tokenGuardaA, // Guarda A tentando escrever em Guarda B
+        authToken: tokenGuardaA,
         targetDocEmail: emailGuardaB,
         incomingData: updateAlheio,
       );
 
+      // 3. Assert
       expect(permitido, isFalse);
     });
 
-    test('ESCRITA: Rejeição de campos não permitidos (hasOnly)', () {
+    test('Sad Path: ESCRITA - Rejeição de campos não permitidos (hasOnly)', () {
+      // 1. Arrange
       final updateComCampoInvalido = {
         'email': emailGuardaA,
         'lat': -22.90,
         'lng': -43.13,
-        'isAdmin': true, // Campo invasor não mapeado
+        'isAdmin': true,
       };
 
+      // 2. Act
       final permitido = FirestoreRulesSimulator.evaluateWriteUserDoc(
         authToken: tokenGuardaA,
         targetDocEmail: emailGuardaA,
         incomingData: updateComCampoInvalido,
       );
 
+      // 3. Assert
       expect(permitido, isFalse);
     });
 
-    test('HISTÓRICO: Membro do grupo ativo pode ler histórico de posições', () {
+    test('Sad Path: ESCRITA - Requisição sem autenticação é rejeitada', () {
+      // 1. Arrange
+      final update = {
+        'email': emailGuardaA,
+        'lat': -22.90,
+        'lng': -43.13,
+      };
+
+      // 2. Act
+      final permitido = FirestoreRulesSimulator.evaluateWriteUserDoc(
+        authToken: null,
+        targetDocEmail: emailGuardaA,
+        incomingData: update,
+      );
+
+      // 3. Assert
+      expect(permitido, isFalse);
+    });
+
+    // -------------------------------------------------------------
+    // HISTÓRICO DE POSIÇÕES
+    // -------------------------------------------------------------
+    test('Happy Path: HISTÓRICO - Membro do grupo ativo pode ler histórico de posições', () {
+      // 1. Arrange
       final parentDoc = {
         'email': emailGuardaA,
         'grupo_ativo': grupoSeguranca,
       };
 
+      // 2. Act
       final permitido = FirestoreRulesSimulator.evaluateReadHistory(
         authToken: tokenObservadorSeguranca,
         targetUserEmail: emailGuardaA,
         parentUserData: parentDoc,
       );
 
+      // 3. Assert
       expect(permitido, isTrue);
     });
 
-    test('HISTÓRICO: Usuário de outro grupo NÃO pode ler histórico de posições', () {
+    test('Sad Path: HISTÓRICO - Usuário de outro grupo NÃO pode ler histórico de posições', () {
+      // 1. Arrange
       final parentDoc = {
         'email': emailGuardaA,
         'grupo_ativo': grupoSeguranca,
       };
 
+      // 2. Act
       final permitido = FirestoreRulesSimulator.evaluateReadHistory(
         authToken: tokenInvasorSemGrupo,
         targetUserEmail: emailGuardaA,
         parentUserData: parentDoc,
       );
 
+      // 3. Assert
+      expect(permitido, isFalse);
+    });
+
+    test('Sad Path: HISTÓRICO - Requisição sem autenticação é rejeitada', () {
+      // 1. Arrange
+      final parentDoc = {
+        'email': emailGuardaA,
+        'grupo_ativo': grupoSeguranca,
+      };
+
+      // 2. Act
+      final permitido = FirestoreRulesSimulator.evaluateReadHistory(
+        authToken: null,
+        targetUserEmail: emailGuardaA,
+        parentUserData: parentDoc,
+      );
+
+      // 3. Assert
       expect(permitido, isFalse);
     });
   });

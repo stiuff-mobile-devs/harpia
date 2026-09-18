@@ -2,8 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:harpia/app/modules/monitora_uff/models/user_model.dart';
 
 void main() {
-  group('Integração e Contratos de Dados do FirebaseProvider (Opção 3)', () {
-    test('Contrato de escrita de posição e grupo_ativo no documento do usuário', () {
+  group('Contratos de Dados do FirebaseProvider (Opção 3)', () {
+    // -------------------------------------------------------------
+    // Escrita de Usuário
+    // -------------------------------------------------------------
+    test('Happy Path: Contrato de escrita de posição e grupo_ativo com campos válidos', () {
+      // 1. Arrange
       const email = 'servidor1@id.uff.br';
       const nome = 'Servidor Silva';
       const lat = -22.9035;
@@ -11,7 +15,7 @@ void main() {
       final timestamp = DateTime(2026, 9, 16, 21, 0, 0);
       const grupoAtivo = 'seguranca-gragoata@id.uff.br';
 
-      // Simula a construção de payload de atualização em updateLocationAndTimestamp
+      // 2. Act
       final userUpdates = <String, dynamic>{
         'email': email,
         'nome': nome,
@@ -21,35 +25,55 @@ void main() {
         if (grupoAtivo.isNotEmpty) 'grupo_ativo': grupoAtivo,
       };
 
-      expect(userUpdates['email'], email);
-      expect(userUpdates['nome'], nome);
-      expect(userUpdates['lat'], lat);
-      expect(userUpdates['lng'], lng);
-      expect(userUpdates['timestamp'], timestamp);
-      expect(userUpdates['grupo_ativo'], grupoAtivo);
-
-      // Valida chaves contra a lista permitida no firestore.rules
-      final allowedKeys = [
-        'email',
-        'nome',
-        'lat',
-        'lng',
-        'timestamp',
-        'isTracked',
-        'grupo_ativo',
-      ];
-      for (final key in userUpdates.keys) {
-        expect(allowedKeys.contains(key), isTrue,
-            reason: 'Chave $key não é permitida nas regras do Firestore!');
-      }
+      // 3. Assert
+      expect(userUpdates, {
+        'email': email,
+        'nome': nome,
+        'lat': lat,
+        'lng': lng,
+        'timestamp': timestamp,
+        'grupo_ativo': grupoAtivo,
+      });
     });
 
-    test('Contrato de gravação de ponto histórico com grupo_ativo', () {
+    test('Edge Case: Contrato de escrita omite grupo_ativo quando este for vazio', () {
+      // 1. Arrange
+      const email = 'servidor1@id.uff.br';
+      const grupoAtivoVazio = '';
+
+      // 2. Act
+      final userUpdates = <String, dynamic>{
+        'email': email,
+        if (grupoAtivoVazio.isNotEmpty) 'grupo_ativo': grupoAtivoVazio,
+      };
+
+      // 3. Assert
+      expect(userUpdates.containsKey('grupo_ativo'), isFalse);
+    });
+
+    test('Sad Path: Rejeita chaves não permitidas no contrato de escrita do usuário', () {
+      // 1. Arrange
+      final allowedKeys = {'email', 'nome', 'lat', 'lng', 'timestamp', 'isTracked', 'grupo_ativo'};
+      final payloadComCampoInvalido = {'email': 'teste@id.uff.br', 'campo_proibido': true};
+
+      // 2. Act
+      final hasIllegalKey = payloadComCampoInvalido.keys.any((k) => !allowedKeys.contains(k));
+
+      // 3. Assert
+      expect(hasIllegalKey, isTrue);
+    });
+
+    // -------------------------------------------------------------
+    // Histórico de Posições
+    // -------------------------------------------------------------
+    test('Happy Path: Contrato de gravação de ponto histórico inclui grupo_ativo e coordenadas', () {
+      // 1. Arrange
       const lat = -22.9035;
       const lng = -43.1320;
       final timestamp = DateTime(2026, 9, 16, 21, 0, 0);
       const grupoAtivo = 'seguranca-gragoata@id.uff.br';
 
+      // 2. Act
       final pointData = <String, dynamic>{
         'lat': lat,
         'lng': lng,
@@ -57,42 +81,68 @@ void main() {
         'grupo_ativo': grupoAtivo,
       };
 
-      expect(pointData['lat'], lat);
-      expect(pointData['lng'], lng);
-      expect(pointData['timestamp'], timestamp);
-      expect(pointData['grupo_ativo'], grupoAtivo);
-
-      // Valida chaves contra subcoleção historico_posicoes no firestore.rules
-      final allowedHistoryKeys = ['lat', 'lng', 'timestamp', 'grupo_ativo'];
-      for (final key in pointData.keys) {
-        expect(allowedHistoryKeys.contains(key), isTrue,
-            reason: 'Chave $key no histórico não permitida nas regras do Firestore!');
-      }
+      // 3. Assert
+      expect(pointData, {
+        'lat': lat,
+        'lng': lng,
+        'timestamp': timestamp,
+        'grupo_ativo': grupoAtivo,
+      });
     });
 
-    test('Contrato de ativação e desativação de rastreamento (updateIsTracked)', () {
-      // 1. Ao iniciar rastreamento:
+    test('Sad Path: Rejeita chaves não permitidas na subcoleção de histórico de posições', () {
+      // 1. Arrange
+      final allowedHistoryKeys = {'lat', 'lng', 'timestamp', 'grupo_ativo'};
+      final historicoComCampoInvalido = {'lat': -22.90, 'campo_desconhecido': 'valor'};
+
+      // 2. Act
+      final hasIllegalKey = historicoComCampoInvalido.keys.any((k) => !allowedHistoryKeys.contains(k));
+
+      // 3. Assert
+      expect(hasIllegalKey, isTrue);
+    });
+
+    // -------------------------------------------------------------
+    // Ativação e Desativação de Rastreamento
+    // -------------------------------------------------------------
+    test('Happy Path: Payload de ativação de rastreamento deve conter isTracked true e grupo_ativo', () {
+      // 1. Arrange
       const activeGroup = 'transporte-vans@id.uff.br';
+
+      // 2. Act
       final payloadIniciar = <String, dynamic>{
         'isTracked': true,
         'grupo_ativo': activeGroup,
       };
 
-      expect(payloadIniciar['isTracked'], isTrue);
-      expect(payloadIniciar['grupo_ativo'], activeGroup);
-
-      // 2. Ao parar rastreamento:
-      final payloadParar = <String, dynamic>{
-        'isTracked': false,
-      };
-
-      expect(payloadParar['isTracked'], isFalse);
-      expect(payloadParar.containsKey('grupo_ativo'), isFalse);
+      // 3. Assert
+      expect(payloadIniciar, {
+        'isTracked': true,
+        'grupo_ativo': 'transporte-vans@id.uff.br',
+      });
     });
 
-    test('Filtro de tempo para streamUsersByGroup (descarte de posições > 5 min)', () {
-      final now = DateTime.now();
+    test('Happy Path: Payload de desativação de rastreamento deve conter isTracked false sem grupo_ativo', () {
+      // 1. Arrange
+      const isTracked = false;
 
+      // 2. Act
+      final payloadParar = <String, dynamic>{
+        'isTracked': isTracked,
+      };
+
+      // 3. Assert
+      expect(payloadParar, {
+        'isTracked': false,
+      });
+    });
+
+    // -------------------------------------------------------------
+    // Filtro de Janela de Tempo
+    // -------------------------------------------------------------
+    test('Happy Path: Filtro de tempo mantém usuário ativo com posição recente (< 5 min)', () {
+      // 1. Arrange
+      final now = DateTime.now();
       final usuarioRecente = UserModel(
         email: 'ativo@id.uff.br',
         lat: -22.90,
@@ -101,26 +151,45 @@ void main() {
         isTracked: true,
         grupoAtivo: 'seguranca@id.uff.br',
       );
-
-      final usuarioInativoAntigo = UserModel(
-        email: 'inativo@id.uff.br',
-        lat: -22.90,
-        lng: -43.13,
-        timestamp: now.subtract(const Duration(minutes: 10)), // Ponto de 10 min atrás
-        isTracked: true,
-        grupoAtivo: 'seguranca@id.uff.br',
-      );
-
-      final todosUsuarios = [usuarioRecente, usuarioInativoAntigo];
       final limit = now.subtract(const Duration(minutes: 5));
 
-      // Lógica interna de descarte do streamUsersByGroup
-      final filtrados = todosUsuarios.where((u) {
-        return u.timestamp != null && u.timestamp!.isAfter(limit);
-      }).toList();
+      // 2. Act
+      final isRecente = usuarioRecente.timestamp != null && usuarioRecente.timestamp!.isAfter(limit);
 
-      expect(filtrados.length, 1);
-      expect(filtrados.first.email, 'ativo@id.uff.br');
+      // 3. Assert
+      expect(isRecente, isTrue);
+    });
+
+    test('Edge Case: Filtro de tempo descarta usuário com timestamp nulo', () {
+      // 1. Arrange
+      final now = DateTime.now();
+      final usuarioSemTimestamp = UserModel(
+        email: 'sem.timestamp@id.uff.br',
+        timestamp: null,
+      );
+      final limit = now.subtract(const Duration(minutes: 5));
+
+      // 2. Act
+      final isValido = usuarioSemTimestamp.timestamp != null && usuarioSemTimestamp.timestamp!.isAfter(limit);
+
+      // 3. Assert
+      expect(isValido, isFalse);
+    });
+
+    test('Sad Path: Filtro de tempo descarta usuário com posição desatualizada (> 5 min)', () {
+      // 1. Arrange
+      final now = DateTime.now();
+      final usuarioAntigo = UserModel(
+        email: 'antigo@id.uff.br',
+        timestamp: now.subtract(const Duration(minutes: 10)),
+      );
+      final limit = now.subtract(const Duration(minutes: 5));
+
+      // 2. Act
+      final isRecente = usuarioAntigo.timestamp != null && usuarioAntigo.timestamp!.isAfter(limit);
+
+      // 3. Assert
+      expect(isRecente, isFalse);
     });
   });
 }
