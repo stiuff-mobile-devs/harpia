@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:harpia/app/modules/login/controllers/auth_google_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/google_groups_controller.dart';
 import 'package:harpia/app/modules/monitora_uff/controller/user_controller.dart';
+import 'package:harpia/app/core/branding/services/brand_service.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
 
 class HarpiaAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -40,8 +41,8 @@ class HarpiaAppBar extends StatelessWidget implements PreferredSizeWidget {
         decoration: BoxDecoration(gradient: AppColors.appBarBottomGradient()),
       ),
       title: Obx(() => Text(
-        'Harpia - Grupo observado: ${googleGroupsController.observedGroup}', 
-        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)
+        '${BrandService.currentAppName} - Grupo observado: ${googleGroupsController.observedGroup}', 
+        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)
       )),
       centerTitle: true,
       elevation: 8,

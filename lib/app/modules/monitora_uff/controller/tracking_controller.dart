@@ -18,6 +18,7 @@ import 'package:harpia/app/modules/monitora_uff/models/location_point.dart';
 import 'package:harpia/app/modules/monitora_uff/models/user_model.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:get/get.dart';
+import 'package:harpia/app/core/branding/services/brand_service.dart';
 import 'package:harpia/app/data/services/foreground_service.dart';
 
 
@@ -477,7 +478,7 @@ class TrackingController extends GetxController with WidgetsBindingObserver {
         isForegroundMode: true,
         autoStart: false,
         autoStartOnBoot: false,
-        initialNotificationTitle: "UM+: Monitoramento de jornada ativo",
+        initialNotificationTitle: "${BrandService.currentAppName}: Monitoramento de jornada ativo",
         initialNotificationContent:
             "O monitoramento está ligado. Certifique-se de desativá-lo assim que terminar suas atividades.",
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:harpia/app/core/branding/services/brand_service.dart';
 import 'package:harpia/app/utils/color_pallete.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -99,8 +100,8 @@ class PermissionsController extends GetxController with WidgetsBindingObserver {
                 const Text("Atenção"),
               ],
             ),
-            content: const Text(
-              "O Monitora UFF deseja coletar dados de localização mesmo quando o aplicativo estiver fechado ou não estiver em uso.\n\n"
+            content: Text(
+              "O ${BrandService.currentAppName} deseja coletar dados de localização mesmo quando o aplicativo estiver fechado ou não estiver em uso.\n\n"
               "Esses dados permitem que os supervisores visualizem sua posição em tempo real.\n\n"
               "Como ativar:\n"
               "1. Toque em 'Prosseguir'.\n"

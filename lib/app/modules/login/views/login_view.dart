@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:harpia/app/core/branding/services/brand_service.dart';
+import 'package:harpia/app/core/branding/widgets/client_logo_widget.dart';
 import 'package:harpia/app/modules/login/controllers/auth_google_controller.dart';
 import 'package:harpia/app/modules/login/controllers/login_controller.dart';
 import 'package:get/get.dart';
@@ -6,36 +8,36 @@ import 'package:harpia/app/utils/color_pallete.dart';
 
 import 'widgets/google_button.dart';
 
-
 class LoginView extends GetView<LoginController> {
   const LoginView({super.key});
 
   AppBar _appBar() {
     return AppBar(
-        title: const Text('Harpia UFF', style: TextStyle(color: Colors.white),),
-        centerTitle: true,
-        backgroundColor: AppColors.darkBlue(),
-      );
+      title: Obx(() => Text(
+            BrandService.currentAppName,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          )),
+      centerTitle: true,
+      backgroundColor: AppColors.primary(),
+      elevation: 0,
+    );
   }
-
-  //Widget _body() {
-  //  //return Center(
-  //  //    child: _loginButton()
-  //  //  );
-  //  return _loginButton();
-  //}
 
   Widget _body() {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(height: 50),
-          _loginButton()
-        ],
-      )
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const ClientLogoWidget(height: 110),
+            const SizedBox(height: 40),
+            _loginButton(),
+          ],
+        ),
+      ),
     );
   }
 
@@ -62,14 +64,14 @@ class LoginView extends GetView<LoginController> {
       }
       return buildGoogleButton(() => controller.loginGoogle());
     });
-  }  
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBlue(),
+      backgroundColor: AppColors.background(),
       appBar: _appBar(),
-      body: _body()
+      body: _body(),
     );
   }
 }
